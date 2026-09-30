@@ -1,0 +1,7 @@
+{
+  "name": "Irrigation Prediction",
+  "description": "Location-aware irrigation need prediction with weather and AI reporting",
+  "version": "1.0.0",
+  "model_type": "Random Forest pipeline",
+  "classes": ["High", "Low", "Medium"]
+}

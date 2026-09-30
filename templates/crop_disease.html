@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Crop Disease Detection | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('user_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Smart Agriculture</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('user_dashboard') }}">Overview</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('crop_disease_page') }}">Crop Disease Detection</a>
+            <a href="{{ application_prefix }}{{ url_for('soil_classification_page') }}">Soil Classification</a>
+            <a href="{{ application_prefix }}{{ url_for('irrigation_prediction_page') }}">Irrigation Prediction</a>
+            <a href="{{ application_prefix }}{{ url_for('history_page') }}">History</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main">
+        <div class="dashboard-topbar">
+            <div>
+                <p class="eyebrow">Project module</p>
+                <h1>Crop Disease Detection</h1>
+            </div>
+            <div class="status-stack">
+                <span class="role-pill" id="modelStatus">Checking model</span>
+                <span class="role-pill" id="assistantStatus">Checking assistant</span>
+            </div>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <section class="project-layout">
+            <article class="workspace upload-panel">
+                <h2>Analyze crop leaf</h2>
+                <p>Upload a clear image of a leaf. The plant disease model will classify the crop condition and return treatment guidance.</p>
+
+                <form id="uploadForm" class="project-form">
+                    <label class="file-drop" for="fileInput">
+                        <img id="localPreview" alt="">
+                        <span id="fileLabel">Choose a crop image</span>
+                        <input id="fileInput" name="file" type="file" accept=".jpg,.jpeg,.png,.bmp,image/*" required>
+                    </label>
+                    <button class="button primary full" type="submit">Run analysis</button>
+                </form>
+
+                <div class="project-message" id="uploadMessage"></div>
+            </article>
+
+            <article class="workspace result-panel">
+                <h2>Analysis result</h2>
+                <div class="result-preview" id="resultPreview">
+                    <span>No image analyzed yet</span>
+                </div>
+                <div class="result-details">
+                    <h3 id="resultLabel">Waiting for upload</h3>
+                    <div class="disease-tags" id="diseaseTags"></div>
+                    <p id="resultAnalysis">The diagnosis summary will appear here after detection.</p>
+                </div>
+            </article>
+        </section>
+
+        <section class="workspace chat-panel">
+            <div class="chat-heading">
+                <div>
+                    <p class="eyebrow">Disease assistant</p>
+                    <h2>Ask about the result</h2>
+                </div>
+            </div>
+            <div class="chat-log" id="chatLog">
+                <div class="chat-bubble bot">Upload an image first, then ask about treatment, symptoms, or prevention.</div>
+            </div>
+            <form id="chatForm" class="chat-form">
+                <input id="chatInput" type="text" placeholder="Ask a crop disease question" autocomplete="off">
+                <button class="button primary" type="submit">Send</button>
+            </form>
+        </section>
+    </main>
+</div>
+
+<script>
+const modelStatus = document.getElementById("modelStatus");
+const uploadForm = document.getElementById("uploadForm");
+const fileInput = document.getElementById("fileInput");
+const fileLabel = document.getElementById("fileLabel");
+const uploadMessage = document.getElementById("uploadMessage");
+const localPreview = document.getElementById("localPreview");
+const resultPreview = document.getElementById("resultPreview");
+const resultLabel = document.getElementById("resultLabel");
+const resultAnalysis = document.getElementById("resultAnalysis");
+const diseaseTags = document.getElementById("diseaseTags");
+const assistantStatus = document.getElementById("assistantStatus");
+const chatForm = document.getElementById("chatForm");
+const chatInput = document.getElementById("chatInput");
+const chatLog = document.getElementById("chatLog");
+let chatHistory = "";
+let latestResult = null;
+
+function showMessage(text, type = "info") {
+    uploadMessage.textContent = text;
+    uploadMessage.className = `project-message ${type}`;
+}
+
+function addChatBubble(text, sender) {
+    const bubble = document.createElement("div");
+    bubble.className = `chat-bubble ${sender}`;
+    bubble.textContent = text;
+    chatLog.appendChild(bubble);
+    chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+fetch("{{ application_prefix }}{{ url_for('crop_disease_detection.info') }}")
+    .then((response) => response.json())
+    .then((data) => {
+        modelStatus.textContent = data.model_available ? "Model ready" : "Model unavailable";
+        modelStatus.classList.toggle("warning", !data.model_available);
+        assistantStatus.textContent = data.ai_assistant_available ? "Assistant ready" : "Assistant offline";
+        assistantStatus.classList.toggle("warning", !data.ai_assistant_available);
+    })
+    .catch(() => {
+        modelStatus.textContent = "Project offline";
+        modelStatus.classList.add("warning");
+        assistantStatus.textContent = "Assistant offline";
+        assistantStatus.classList.add("warning");
+    });
+
+fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    fileLabel.textContent = file ? file.name : "Choose a crop image";
+
+    if (file) {
+        localPreview.src = URL.createObjectURL(file);
+        localPreview.classList.add("show");
+    } else {
+        localPreview.removeAttribute("src");
+        localPreview.classList.remove("show");
+    }
+});
+
+uploadForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!fileInput.files[0]) {
+        showMessage("Please choose an image first.", "error");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+    showMessage("Running detection...", "info");
+
+    try {
+        const response = await fetch("{{ application_prefix }}{{ url_for('crop_disease_detection.upload') }}", {
+            method: "POST",
+            body: formData,
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            showMessage(data.error || "Detection failed.", "error");
+            return;
+        }
+
+        resultPreview.innerHTML = `<img src="data:image/jpeg;base64,${data.image}" alt="Detected crop disease result">`;
+        resultLabel.textContent = data.label || "No disease classified";
+        resultAnalysis.textContent = data.analysis || "No analysis returned.";
+        latestResult = {
+            label: data.label || "",
+            confidence: data.confidence || null,
+            analysis: data.analysis || "",
+            recommendation: data.recommendation || "",
+            detected_diseases: data.detected_diseases || [],
+        };
+        diseaseTags.innerHTML = "";
+        (data.detected_diseases || []).forEach((disease) => {
+            const tag = document.createElement("span");
+            tag.textContent = disease;
+            diseaseTags.appendChild(tag);
+        });
+        if (!data.detected_diseases || data.detected_diseases.length === 0) {
+            const tag = document.createElement("span");
+            tag.textContent = "No class returned";
+            diseaseTags.appendChild(tag);
+        }
+        showMessage("Detection complete.", "success");
+    } catch (error) {
+        showMessage("Could not reach the detection service.", "error");
+    }
+});
+
+chatForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const message = chatInput.value.trim();
+    if (!message) {
+        return;
+    }
+
+    addChatBubble(message, "user");
+    chatInput.value = "";
+
+    try {
+        const response = await fetch("{{ application_prefix }}{{ url_for('crop_disease_detection.chat') }}", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({message, chatHistory, latestResult}),
+        });
+        const data = await response.json();
+        const reply = data.response || data.error || "No response returned.";
+        addChatBubble(reply, "bot");
+        chatHistory += `Farmer: ${message}\nAssistant: ${reply}\n`;
+    } catch (error) {
+        addChatBubble("Could not reach the assistant service.", "bot");
+    }
+});
+</script>
+{% endblock %}

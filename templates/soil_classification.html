@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Soil Classification | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('user_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Smart Agriculture</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('user_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('crop_disease_page') }}">Crop Disease Detection</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('soil_classification_page') }}">Soil Classification</a>
+            <a href="{{ application_prefix }}{{ url_for('irrigation_prediction_page') }}">Irrigation Prediction</a>
+            <a href="{{ application_prefix }}{{ url_for('history_page') }}">History</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main">
+        <div class="dashboard-topbar">
+            <div>
+                <p class="eyebrow">Project module</p>
+                <h1>Soil Classification</h1>
+            </div>
+            <div class="status-stack">
+                <span class="role-pill" id="soilModelStatus">Checking model</span>
+                <span class="role-pill" id="soilAssistantStatus">Assistant ready</span>
+            </div>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <section class="project-layout">
+            <article class="workspace upload-panel">
+                <h2>Analyze soil image</h2>
+                <p>Upload a clear soil image. The classifier will identify the soil type and show suitable crops, cautions, and improvement advice.</p>
+
+                <form id="soilUploadForm" class="project-form">
+                    <label class="file-drop" for="soilFileInput">
+                        <img id="soilLocalPreview" alt="">
+                        <span id="soilFileLabel">Choose a soil image</span>
+                        <input id="soilFileInput" name="image" type="file" accept=".jpg,.jpeg,.png,.bmp,image/*" required>
+                    </label>
+                    <button class="button primary full" type="submit">Classify soil</button>
+                </form>
+
+                <div class="project-message" id="soilUploadMessage"></div>
+            </article>
+
+            <article class="workspace result-panel">
+                <h2>Classification result</h2>
+                <div class="result-preview" id="soilResultPreview">
+                    <span>No soil image analyzed yet</span>
+                </div>
+                <div class="result-details">
+                    <h3 id="soilResultLabel">Waiting for upload</h3>
+                    <div class="disease-tags" id="soilTags"></div>
+                    <p id="soilDescription">The soil summary will appear here after classification.</p>
+                    <div class="soil-advice-grid">
+                        <article>
+                            <span>Good crops</span>
+                            <p id="soilGoodCrops">Waiting for result</p>
+                        </article>
+                        <article>
+                            <span>Avoid</span>
+                            <p id="soilAvoid">Waiting for result</p>
+                        </article>
+                        <article>
+                            <span>Improvement</span>
+                            <p id="soilImprovement">Waiting for result</p>
+                        </article>
+                        <article>
+                            <span>Fertilizer</span>
+                            <p id="soilFertilizer">Waiting for result</p>
+                        </article>
+                        <article>
+                            <span>Irrigation</span>
+                            <p id="soilIrrigation">Waiting for result</p>
+                        </article>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="workspace chat-panel">
+            <div class="chat-heading">
+                <div>
+                    <p class="eyebrow">Soil assistant</p>
+                    <h2>Ask about the result</h2>
+                </div>
+            </div>
+            <div class="chat-log" id="soilChatLog">
+                <div class="chat-bubble bot">Upload a soil image first, then ask about crops, fertilizer, drainage, watering, or soil improvement.</div>
+            </div>
+            <form id="soilChatForm" class="chat-form">
+                <input id="soilChatInput" type="text" placeholder="Ask a soil management question" autocomplete="off">
+                <button class="button primary" type="submit">Send</button>
+            </form>
+        </section>
+    </main>
+</div>
+
+<script>
+const soilModelStatus = document.getElementById("soilModelStatus");
+const soilAssistantStatus = document.getElementById("soilAssistantStatus");
+const soilUploadForm = document.getElementById("soilUploadForm");
+const soilFileInput = document.getElementById("soilFileInput");
+const soilFileLabel = document.getElementById("soilFileLabel");
+const soilUploadMessage = document.getElementById("soilUploadMessage");
+const soilLocalPreview = document.getElementById("soilLocalPreview");
+const soilResultPreview = document.getElementById("soilResultPreview");
+const soilResultLabel = document.getElementById("soilResultLabel");
+const soilTags = document.getElementById("soilTags");
+const soilDescription = document.getElementById("soilDescription");
+const soilGoodCrops = document.getElementById("soilGoodCrops");
+const soilAvoid = document.getElementById("soilAvoid");
+const soilImprovement = document.getElementById("soilImprovement");
+const soilFertilizer = document.getElementById("soilFertilizer");
+const soilIrrigation = document.getElementById("soilIrrigation");
+const soilChatForm = document.getElementById("soilChatForm");
+const soilChatInput = document.getElementById("soilChatInput");
+const soilChatLog = document.getElementById("soilChatLog");
+let latestSoilType = "";
+let latestSoilConfidence = null;
+let latestSoilContext = null;
+
+function showSoilMessage(text, type = "info") {
+    soilUploadMessage.textContent = text;
+    soilUploadMessage.className = `project-message ${type}`;
+}
+
+function addSoilChatBubble(text, sender) {
+    const bubble = document.createElement("div");
+    bubble.className = `chat-bubble ${sender}`;
+    bubble.textContent = text;
+    soilChatLog.appendChild(bubble);
+    soilChatLog.scrollTop = soilChatLog.scrollHeight;
+}
+
+function soilText(value) {
+    if (Array.isArray(value)) {
+        return value.join(", ");
+    }
+    return value || "";
+}
+
+function renderSoilInfo(info) {
+    soilDescription.textContent = info.description || "No description returned.";
+    soilGoodCrops.textContent = soilText(info.good_crops) || "No crop list returned.";
+    soilAvoid.textContent = soilText(info.avoid) || "No avoid list returned.";
+    soilImprovement.textContent = info.improvement || "No improvement advice returned.";
+    soilFertilizer.textContent = info.fertilizer || "No fertilizer advice returned.";
+    soilIrrigation.textContent = info.irrigation || "No irrigation advice returned.";
+}
+
+fetch("{{ application_prefix }}{{ url_for('soil_classification.get_config') }}")
+    .then((response) => response.json())
+    .then((payload) => {
+        const config = payload.data || {};
+        soilModelStatus.textContent = config.model_available ? "Model ready" : "Model unavailable";
+        soilModelStatus.classList.toggle("warning", !config.model_available);
+        soilAssistantStatus.textContent = config.ai_assistant_available ? "Assistant ready" : "Assistant offline";
+        soilAssistantStatus.classList.toggle("warning", !config.ai_assistant_available);
+    })
+    .catch(() => {
+        soilModelStatus.textContent = "Project offline";
+        soilModelStatus.classList.add("warning");
+        soilAssistantStatus.textContent = "Assistant offline";
+        soilAssistantStatus.classList.add("warning");
+    });
+
+soilFileInput.addEventListener("change", () => {
+    const file = soilFileInput.files[0];
+    soilFileLabel.textContent = file ? file.name : "Choose a soil image";
+
+    if (file) {
+        soilLocalPreview.src = URL.createObjectURL(file);
+        soilLocalPreview.classList.add("show");
+    } else {
+        soilLocalPreview.removeAttribute("src");
+        soilLocalPreview.classList.remove("show");
+    }
+});
+
+soilUploadForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!soilFileInput.files[0]) {
+        showSoilMessage("Please choose an image first.", "error");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", soilFileInput.files[0]);
+    showSoilMessage("Running soil classification...", "info");
+
+    try {
+        const response = await fetch("{{ application_prefix }}{{ url_for('soil_classification.classify') }}", {
+            method: "POST",
+            body: formData,
+        });
+        const payload = await response.json();
+
+        if (!response.ok || !payload.success) {
+            showSoilMessage(payload.error || "Soil classification failed.", "error");
+            return;
+        }
+
+        const data = payload.data || {};
+        latestSoilType = data.soil_type || "";
+        latestSoilConfidence = data.confidence;
+        latestSoilContext = data.info || {};
+        soilResultPreview.innerHTML = `<img src="${soilLocalPreview.src}" alt="Uploaded soil image">`;
+        soilResultLabel.textContent = latestSoilType ? `${latestSoilType} soil` : "No soil type returned";
+        soilTags.innerHTML = "";
+        [latestSoilType, `${data.confidence || 0}% confidence`].forEach((item) => {
+            const tag = document.createElement("span");
+            tag.textContent = item;
+            soilTags.appendChild(tag);
+        });
+        renderSoilInfo(latestSoilContext);
+        showSoilMessage("Soil classification complete.", "success");
+    } catch (error) {
+        showSoilMessage("Could not reach the soil classification service.", "error");
+    }
+});
+
+soilChatForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const message = soilChatInput.value.trim();
+    if (!message) {
+        return;
+    }
+
+    if (!latestSoilType) {
+        addSoilChatBubble("Please classify a soil image first so I know which soil type to advise on.", "bot");
+        return;
+    }
+
+    addSoilChatBubble(message, "user");
+    soilChatInput.value = "";
+
+    try {
+        const response = await fetch("{{ application_prefix }}{{ url_for('soil_classification.chat') }}", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                soil_type: latestSoilType,
+                confidence: latestSoilConfidence,
+                soil_context: latestSoilContext,
+                message,
+            }),
+        });
+        const payload = await response.json();
+        addSoilChatBubble(payload.response || payload.error || "No response returned.", "bot");
+    } catch (error) {
+        addSoilChatBubble("Could not reach the soil assistant service.", "bot");
+    }
+});
+</script>
+{% endblock %}

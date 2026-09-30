@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Login | Smart Agriculture{% endblock %}
+
+{% block body %}
+<main class="auth-page">
+    <section class="auth-card">
+        <a class="brand auth-brand" href="{{ application_prefix }}{{ url_for('landing') }}">
+            <span class="brand-mark">SA</span>
+            <span>Smart Agriculture</span>
+        </a>
+        <h1>Welcome back</h1>
+        <p>Sign in to continue to your agriculture dashboard.</p>
+
+        {% include "partials/flash.html" %}
+
+        <form method="post" class="form">
+            <label for="email">Email address</label>
+            <input id="email" name="email" type="email" autocomplete="email" required>
+
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+            <button class="button primary full" type="submit">Login</button>
+        </form>
+
+        <p class="auth-switch">No account yet? <a href="{{ application_prefix }}{{ url_for('register') }}">Create one</a></p>
+        <p class="demo-note">Admin demo: admin@smartfarm.local / admin123</p>
+    </section>
+</main>
+{% endblock %}

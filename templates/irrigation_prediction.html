@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block title %}Irrigation Prediction | Smart Agriculture{% endblock %}
+
+{% block body %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<div class="dashboard-shell">
+    <aside class="sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('user_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Smart Agriculture</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('user_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('crop_disease_page') }}">Crop Disease Detection</a>
+            <a href="{{ application_prefix }}{{ url_for('soil_classification_page') }}">Soil Classification</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('irrigation_prediction_page') }}">Irrigation Prediction</a>
+            <a href="{{ application_prefix }}{{ url_for('history_page') }}">History</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main">
+        <div class="dashboard-topbar">
+            <div>
+                <p class="eyebrow">Project module</p>
+                <h1>Irrigation Prediction</h1>
+            </div>
+            <div class="status-stack">
+                <span class="role-pill" id="irrigationModelStatus">Checking model</span>
+                <span class="role-pill" id="irrigationAssistantStatus">Checking assistant</span>
+            </div>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <section class="project-layout irrigation-layout">
+            <article class="workspace upload-panel">
+                <h2>Field conditions</h2>
+                <p>Enter farm location and crop details. Weather is fetched automatically before the model predicts irrigation need.</p>
+
+                <form id="irrigationForm" class="project-form field-form">
+                    <div class="location-picker">
+                        <div class="map-toolbar">
+                            <div>
+                                <span>Farm location</span>
+                                <strong id="selectedLocation">Select a point on the map</strong>
+                            </div>
+                            <button class="button secondary" id="useCurrentLocation" type="button">Use my location</button>
+                        </div>
+                        <div id="farmMap" class="farm-map"></div>
+                        <input id="latitude" type="hidden" required>
+                        <input id="longitude" type="hidden" required>
+                    </div>
+
+                    <div class="form-grid two">
+                        <label>
+                            Crop type
+                            <select id="cropType" required></select>
+                        </label>
+                        <label>
+                            Soil type
+                            <select id="soilType" required></select>
+                        </label>
+                    </div>
+
+                    <div class="form-grid two">
+                        <label>
+                            Growth stage
+                            <select id="growthStage" required></select>
+                        </label>
+                        <label>
+                            Season
+                            <select id="season" required></select>
+                        </label>
+                    </div>
+
+                    <label>
+                        Planting date
+                        <input id="plantingDate" type="date">
+                    </label>
+
+                    <div class="form-grid two">
+                        <label>
+                            Soil moisture (%)
+                            <input id="soilMoisture" type="number" min="0" max="100" step="1" value="50" required>
+                        </label>
+                        <label>
+                            Field area (hectares)
+                            <input id="fieldArea" type="number" min="0.01" step="0.01" value="1" required>
+                        </label>
+                    </div>
+
+                    <label>
+                        Mulching used
+                        <select id="mulchingUsed" required></select>
+                    </label>
+
+                    <button class="button primary full" type="submit">Generate irrigation report</button>
+                </form>
+
+                <div class="project-message" id="irrigationMessage"></div>
+            </article>
+
+            <article class="workspace result-panel">
+                <h2>Prediction result</h2>
+                <div class="irrigation-result">
+                    <span class="prediction-value" id="predictionValue">Waiting</span>
+                    <div class="disease-tags" id="predictionTags">
+                        <span>No prediction yet</span>
+                    </div>
+                    <p id="predictionRisk">Risk level unavailable</p>
+                    <p id="predictionConfidence">Model confidence unavailable</p>
+                    <pre id="recommendationText">The irrigation recommendation will appear here after prediction.</pre>
+                    <button class="button secondary" id="downloadReport" type="button" disabled>Download decision report</button>
+                </div>
+
+                <div class="workspace explanation-panel">
+                    <p class="eyebrow">Explainable prediction</p>
+                    <h3>Why this recommendation?</h3>
+                    <p id="explanationSummary">The factors behind the prediction will appear here.</p>
+                    <ul id="explanationFactors">
+                        <li>Waiting for prediction factors.</li>
+                    </ul>
+                </div>
+
+                <div class="soil-advice-grid weather-result-grid">
+                    <article>
+                        <span>Temperature</span>
+                        <p id="weatherTemperature">-- C</p>
+                    </article>
+                    <article>
+                        <span>Humidity</span>
+                        <p id="weatherHumidity">--%</p>
+                    </article>
+                    <article>
+                        <span>Rainfall</span>
+                        <p id="weatherRainfall">-- mm</p>
+                    </article>
+                    <article>
+                        <span>Wind speed</span>
+                        <p id="weatherWind">-- km/h</p>
+                    </article>
+                    <article>
+                        <span>Weather source</span>
+                        <p id="weatherSource">Waiting</p>
+                    </article>
+                </div>
+            </article>
+        </section>
+
+        <section class="workspace chat-panel">
+            <div class="chat-heading">
+                <div>
+                    <p class="eyebrow">AI irrigation report</p>
+                    <h2>Detailed guidance</h2>
+                </div>
+            </div>
+            <div class="report-panel" id="irrigationReport">Generate a prediction to view the AI-powered irrigation report.</div>
+        </section>
+    </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const irrigationModelStatus = document.getElementById("irrigationModelStatus");
+const irrigationAssistantStatus = document.getElementById("irrigationAssistantStatus");
+const irrigationForm = document.getElementById("irrigationForm");
+const irrigationMessage = document.getElementById("irrigationMessage");
+const cropType = document.getElementById("cropType");
+const soilType = document.getElementById("soilType");
+const growthStage = document.getElementById("growthStage");
+const season = document.getElementById("season");
+const mulchingUsed = document.getElementById("mulchingUsed");
+const predictionValue = document.getElementById("predictionValue");
+const predictionTags = document.getElementById("predictionTags");
+const predictionRisk = document.getElementById("predictionRisk");
+const predictionConfidence = document.getElementById("predictionConfidence");
+const recommendationText = document.getElementById("recommendationText");
+const downloadReport = document.getElementById("downloadReport");
+const explanationSummary = document.getElementById("explanationSummary");
+const explanationFactors = document.getElementById("explanationFactors");
+const weatherTemperature = document.getElementById("weatherTemperature");
+const weatherHumidity = document.getElementById("weatherHumidity");
+const weatherRainfall = document.getElementById("weatherRainfall");
+const weatherWind = document.getElementById("weatherWind");
+const weatherSource = document.getElementById("weatherSource");
+const irrigationReport = document.getElementById("irrigationReport");
+const latitudeInput = document.getElementById("latitude");
+const longitudeInput = document.getElementById("longitude");
+const selectedLocation = document.getElementById("selectedLocation");
+const useCurrentLocation = document.getElementById("useCurrentLocation");
+let farmMap = null;
+let farmMarker = null;
+let latestDecision = null;
+
+function showIrrigationMessage(text, type = "info") {
+    irrigationMessage.textContent = text;
+    irrigationMessage.className = `project-message ${type}`;
+}
+
+function fillSelect(select, options, selectedValue = "") {
+    select.innerHTML = "";
+    options.forEach((option) => {
+        const item = document.createElement("option");
+        item.value = option;
+        item.textContent = option;
+        if (option === selectedValue) {
+            item.selected = true;
+        }
+        select.appendChild(item);
+    });
+}
+
+function formatNumber(value, suffix) {
+    const number = Number(value);
+    if (Number.isFinite(number)) {
+        return `${number.toFixed(number % 1 === 0 ? 0 : 1)} ${suffix}`;
+    }
+    return `-- ${suffix}`;
+}
+
+downloadReport.addEventListener("click", () => {
+    if (!latestDecision) {
+        return;
+    }
+
+    const report = {
+        generated_at: new Date().toISOString(),
+        prediction: latestDecision.prediction,
+        risk_level: latestDecision.risk_level,
+        confidence: latestDecision.confidence,
+        recommendation: latestDecision.recommendation,
+        explanation: latestDecision.explanation,
+        weather: latestDecision.weather,
+        inputs: latestDecision.inputs,
+    };
+    const blob = new Blob([JSON.stringify(report, null, 2)], {type: "application/json"});
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "agrisense-irrigation-decision.json";
+    link.click();
+    URL.revokeObjectURL(link.href);
+});
+
+function setSelectedLocation(lat, lon, zoom = 12) {
+    latitudeInput.value = Number(lat).toFixed(5);
+    longitudeInput.value = Number(lon).toFixed(5);
+    selectedLocation.textContent = `${latitudeInput.value}, ${longitudeInput.value}`;
+
+    if (farmMap && farmMarker) {
+        farmMarker.setLatLng([lat, lon]);
+        farmMap.setView([lat, lon], zoom);
+    }
+}
+
+function initializeMap() {
+    const initialLocation = [-25.7479, 28.2293];
+
+    if (!window.L) {
+        selectedLocation.textContent = "Map unavailable. Refresh when online.";
+        return;
+    }
+
+    farmMap = L.map("farmMap").setView(initialLocation, 10);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(farmMap);
+
+    farmMarker = L.marker(initialLocation, {draggable: true}).addTo(farmMap);
+    farmMarker.on("dragend", () => {
+        const point = farmMarker.getLatLng();
+        setSelectedLocation(point.lat, point.lng, farmMap.getZoom());
+    });
+    farmMap.on("click", (event) => {
+        setSelectedLocation(event.latlng.lat, event.latlng.lng, farmMap.getZoom());
+    });
+
+    setSelectedLocation(initialLocation[0], initialLocation[1], 10);
+
+    setTimeout(() => {
+        farmMap.invalidateSize();
+    }, 250);
+}
+
+useCurrentLocation.addEventListener("click", () => {
+    if (!navigator.geolocation) {
+        showIrrigationMessage("Your browser does not support location detection. Select the field on the map.", "error");
+        return;
+    }
+
+    showIrrigationMessage("Detecting your location...", "info");
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            setSelectedLocation(position.coords.latitude, position.coords.longitude, 14);
+            showIrrigationMessage("Location selected.", "success");
+        },
+        () => {
+            showIrrigationMessage("Could not detect your location. Select the field on the map.", "error");
+        },
+        {enableHighAccuracy: true, timeout: 10000}
+    );
+});
+
+fetch("{{ application_prefix }}{{ url_for('irrigation_prediction.get_config') }}")
+    .then((response) => response.json())
+    .then((payload) => {
+        const config = payload.data || {};
+        irrigationModelStatus.textContent = config.model_available ? "Model ready" : "Model unavailable";
+        irrigationModelStatus.classList.toggle("warning", !config.model_available);
+        irrigationAssistantStatus.textContent = config.ai_assistant_available ? "Assistant ready" : "Assistant offline";
+        irrigationAssistantStatus.classList.toggle("warning", !config.ai_assistant_available);
+        fillSelect(cropType, config.crop_types || [], "Maize");
+        fillSelect(soilType, config.soil_types || [], "Loamy");
+        fillSelect(growthStage, config.growth_stages || [], "Vegetative");
+        fillSelect(season, config.seasons || [], "Kharif");
+        fillSelect(mulchingUsed, config.mulching_options || [], "No");
+    })
+    .catch(() => {
+        irrigationModelStatus.textContent = "Project offline";
+        irrigationModelStatus.classList.add("warning");
+        irrigationAssistantStatus.textContent = "Assistant offline";
+        irrigationAssistantStatus.classList.add("warning");
+    });
+
+initializeMap();
+
+irrigationForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!latitudeInput.value || !longitudeInput.value) {
+        showIrrigationMessage("Please select your farm location on the map.", "error");
+        return;
+    }
+    showIrrigationMessage("Fetching weather and running prediction...", "info");
+
+    const payload = {
+        latitude: latitudeInput.value,
+        longitude: longitudeInput.value,
+        crop_type: cropType.value,
+        soil_type: soilType.value,
+        growth_stage: growthStage.value,
+        season: season.value,
+        planting_date: document.getElementById("plantingDate").value,
+        soil_moisture: document.getElementById("soilMoisture").value,
+        field_area: document.getElementById("fieldArea").value,
+        mulching_used: mulchingUsed.value,
+    };
+
+    try {
+        const response = await fetch("{{ application_prefix }}{{ url_for('irrigation_prediction.predict') }}", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            showIrrigationMessage(result.error || "Irrigation prediction failed.", "error");
+            return;
+        }
+
+        const data = result.data || {};
+        const weather = data.weather || {};
+        latestDecision = data;
+        downloadReport.disabled = false;
+        predictionValue.textContent = data.prediction || "No prediction";
+        predictionRisk.textContent = data.risk_level || "Unknown risk";
+        predictionConfidence.textContent = data.confidence === null || data.confidence === undefined
+            ? "Confidence unavailable"
+            : `${data.confidence}% model confidence`;
+        recommendationText.textContent = data.recommendation || "No recommendation returned.";
+        explanationSummary.textContent = data.explanation?.summary || "No explanation returned.";
+        explanationFactors.innerHTML = "";
+        (data.explanation?.factors || []).forEach((factor) => {
+            const item = document.createElement("li");
+            item.textContent = factor;
+            explanationFactors.appendChild(item);
+        });
+        weatherTemperature.textContent = formatNumber(weather.Temperature_C, "C");
+        weatherHumidity.textContent = formatNumber(weather.Humidity, "%");
+        weatherRainfall.textContent = formatNumber(weather.Rainfall_mm, "mm");
+        weatherWind.textContent = formatNumber(weather.Wind_Speed_kmh, "km/h");
+        weatherSource.textContent = weather.source || "Weather service";
+        irrigationReport.textContent = data.report || "No AI report returned.";
+
+        predictionTags.innerHTML = "";
+        (data.probabilities || []).forEach((item) => {
+            const tag = document.createElement("span");
+            tag.textContent = `${item.label}: ${item.probability}%`;
+            predictionTags.appendChild(tag);
+        });
+        if (!data.probabilities || data.probabilities.length === 0) {
+            const tag = document.createElement("span");
+            tag.textContent = "Probability unavailable";
+            predictionTags.appendChild(tag);
+        }
+
+        showIrrigationMessage("Irrigation prediction complete.", "success");
+    } catch (error) {
+        showIrrigationMessage("Could not reach the irrigation prediction service.", "error");
+    }
+});
+</script>
+{% endblock %}

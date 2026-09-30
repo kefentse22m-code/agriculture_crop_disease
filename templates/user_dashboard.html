@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}User Dashboard | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('user_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Smart Agriculture</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a class="active" href="{{ application_prefix }}{{ url_for('user_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('crop_disease_page') }}">Crop Disease Detection</a>
+            <a href="{{ application_prefix }}{{ url_for('soil_classification_page') }}">Soil Classification</a>
+            <a href="{{ application_prefix }}{{ url_for('irrigation_prediction_page') }}">Irrigation Prediction</a>
+            <a href="{{ application_prefix }}{{ url_for('history_page') }}">History</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main">
+        <div class="dashboard-topbar">
+            <div>
+                <p class="eyebrow">User dashboard</p>
+                <h1>Hello, {{ session.name }}</h1>
+            </div>
+            <span class="role-pill">Farmer</span>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <section class="dashboard-grid">
+            <article class="metric-card">
+                <span>Active projects</span>
+                <strong>3</strong>
+            </article>
+            <article class="metric-card">
+                <span>Available modules</span>
+                <strong>3</strong>
+            </article>
+            <article class="metric-card">
+                <span>Account status</span>
+                <strong>Ready</strong>
+            </article>
+        </section>
+
+        <section class="workspace">
+            <h2>Project workspace</h2>
+            <p>
+                Crop Disease Detection, Soil Classification, and Irrigation Prediction are now available in the sidebar.
+                Open a module to use the model and view AI guidance.
+            </p>
+            <div class="project-actions">
+                <a class="button primary project-launch" href="{{ application_prefix }}{{ url_for('crop_disease_page') }}">Open Crop Disease Detection</a>
+                <a class="button secondary project-launch" href="{{ application_prefix }}{{ url_for('soil_classification_page') }}">Open Soil Classification</a>
+                <a class="button secondary project-launch" href="{{ application_prefix }}{{ url_for('irrigation_prediction_page') }}">Open Irrigation Prediction</a>
+            </div>
+        </section>
+
+        <section class="workspace">
+            <h2>Project guide</h2>
+            <div class="project-description-grid">
+                <article>
+                    <span>Crop Disease Detection</span>
+                    <p>Upload a crop leaf image to classify plant disease, view model confidence, and get practical treatment guidance.</p>
+                </article>
+                <article>
+                    <span>Soil Classification</span>
+                    <p>Analyze a soil image to identify soil type and receive crop, fertilizer, irrigation, and improvement advice.</p>
+                </article>
+                <article>
+                    <span>Irrigation Prediction</span>
+                    <p>Select a field location on the map, add crop conditions, fetch WeatherAPI data, and predict irrigation need.</p>
+                </article>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

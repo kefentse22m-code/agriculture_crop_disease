@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a href="#">Users</a>
+            <a href="#">Projects</a>
+            <a href="#">Reports</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main">
+        <div class="dashboard-topbar">
+            <div>
+                <p class="eyebrow">Admin dashboard</p>
+                <h1>Platform control</h1>
+            </div>
+            <span class="role-pill admin">Admin</span>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <section class="dashboard-grid">
+            <article class="metric-card">
+                <span>Total users</span>
+                <strong>{{ users|length }}</strong>
+            </article>
+            <article class="metric-card">
+                <span>Projects installed</span>
+                <strong>0</strong>
+            </article>
+            <article class="metric-card">
+                <span>System status</span>
+                <strong>Online</strong>
+            </article>
+        </section>
+
+        <section class="workspace">
+            <h2>Registered users</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                            <tr>
+                                <td>{{ user.name }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user.role }}</td>
+                                <td>{{ user.created_at }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

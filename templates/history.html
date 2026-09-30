@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}History | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('user_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Smart Agriculture</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('user_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('crop_disease_page') }}">Crop Disease Detection</a>
+            <a href="{{ application_prefix }}{{ url_for('soil_classification_page') }}">Soil Classification</a>
+            <a href="{{ application_prefix }}{{ url_for('irrigation_prediction_page') }}">Irrigation Prediction</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('history_page') }}">History</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main">
+        <div class="dashboard-topbar">
+            <div>
+                <p class="eyebrow">Saved activity</p>
+                <h1>History</h1>
+            </div>
+            <span class="role-pill">{{ history_items|length }} records</span>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <section class="history-list">
+            {% if history_items %}
+                {% for item in history_items %}
+                    <article class="workspace history-card">
+                        <div class="history-media">
+                            {% if item.image_url %}
+                                <img src="{{ item.image_url }}" alt="{{ item.project.replace('_', ' ').title() }} upload preview">
+                            {% else %}
+                                <span>No image for this record</span>
+                            {% endif %}
+                        </div>
+                        <div class="history-content">
+                            <div class="history-heading">
+                                <div>
+                                    <p class="eyebrow">{{ item.project.replace("_", " ").title() }}</p>
+                                    <h2>{{ item.summary }}</h2>
+                                </div>
+                                <span class="role-pill">{{ item.action.title() }}</span>
+                            </div>
+
+                            <dl class="history-meta">
+                                <div>
+                                    <dt>Upload</dt>
+                                    <dd>{{ item.upload_filename or "No file uploaded" }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Created</dt>
+                                    <dd>{{ item.created_at }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Content type</dt>
+                                    <dd>{{ item.upload_content_type or "Not stored" }}</dd>
+                                </div>
+                            </dl>
+
+                            <details class="history-details">
+                                <summary>View stored request</summary>
+                                <pre>{{ item.request_payload_pretty }}</pre>
+                            </details>
+                            <details class="history-details">
+                                <summary>View stored response</summary>
+                                <pre>{{ item.response_payload_pretty }}</pre>
+                            </details>
+                        </div>
+                    </article>
+                {% endfor %}
+            {% else %}
+                <article class="workspace">
+                    <h2>No history yet</h2>
+                    <p>Your crop uploads, soil classifications, irrigation predictions, and assistant chats will appear here after you use a project.</p>
+                </article>
+            {% endif %}
+        </section>
+    </main>
+</div>
+{% endblock %}
