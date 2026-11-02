@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_irrigation') }}">Irrigation Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Push Notifications</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_alerts') }}">Alerts</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
+            <a href="#">Projects</a>
+            <a href="#">Reports</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main">
+        <div class="dashboard-topbar">
+            <div>
+                <p class="eyebrow">Admin dashboard</p>
+                <h1>Platform control</h1>
+            </div>
+            <span class="role-pill admin">Admin</span>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <section class="dashboard-grid">
+            <article class="metric-card">
+                <span>Total users</span>
+                <strong>{{ users|length }}</strong>
+            </article>
+            <article class="metric-card">
+                <span>Projects installed</span>
+                <strong>0</strong>
+            </article>
+            <article class="metric-card">
+                <span>System status</span>
+                <strong>Online</strong>
+            </article>
+        </section>
+
+        <section class="workspace">
+            <h2>Create user</h2>
+            <form method="post" action="{{ application_prefix }}{{ url_for('admin_create_user') }}" class="project-form">
+                <div class="form-grid three">
+                    <label>
+                        Name
+                        <input type="text" name="name" required>
+                    </label>
+                    <label>
+                        Email
+                        <input type="email" name="email" required>
+                    </label>
+                    <label>
+                        Role
+                        <select name="role">
+                            <option value="user">user</option>
+                            <option value="admin">admin</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="form-grid one">
+                    <label>
+                        Password
+                        <input type="password" name="password" required>
+                    </label>
+                </div>
+                <button class="button primary" type="submit">Create user</button>
+            </form>
+        </section>
+
+        <section class="workspace">
+            <h2>Registered users</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                            <tr>
+                                <td>
+                                    <form method="post" action="{{ application_prefix }}{{ url_for('admin_update_user', user_id=user.id) }}" class="inline-form">
+                                        <input type="text" name="name" value="{{ user.name }}" required>
+                                </td>
+                                <td>
+                                        <input type="email" name="email" value="{{ user.email }}" required>
+                                </td>
+                                <td>
+                                        <select name="role">
+                                            <option value="user" {% if user.role == 'user' %}selected{% endif %}>user</option>
+                                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>admin</option>
+                                        </select>
+                                </td>
+                                <td>{{ user.created_at }}</td>
+                                <td>
+                                    <div class="inline-actions">
+                                        <label>
+                                            New password
+                                            <input type="password" name="password" placeholder="Leave blank to keep">
+                                        </label>
+                                        <button class="button secondary" type="submit">Save</button>
+                                    </div>
+                                    </form>
+                                    <form method="post" action="{{ application_prefix }}{{ url_for('admin_delete_user', user_id=user.id) }}" class="inline-delete-form">
+                                        <button class="button danger" type="submit" {% if session.user_id|string == user.id|string %}disabled{% endif %}>Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

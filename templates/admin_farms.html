@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block title %}Farm Management | Smart Agriculture{% endblock %}
+
+{% block body %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Notifications</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
+            <a href="#">Projects</a>
+            <a href="#">Reports</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main farm-main">
+        <div class="page-header">
+            <div>
+                <h1>Farm Management</h1>
+                <p>All registered farms, owners, sizes and fields.</p>
+            </div>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <section class="farm-location-panel">
+            <div class="farm-map-header">
+                <h2>Farm locations · South Africa</h2>
+                <span>Farms without GPS are not shown</span>
+            </div>
+            <div id="farmMap" class="farm-map-box" aria-label="Farm map"></div>
+            <div class="map-attribution">
+                <span class="legend-swatch green"></span> Leaflet
+                <span class="legend-divider">|</span>
+                <span>© OpenStreetMap contributors</span>
+            </div>
+        </section>
+
+        <section class="list-toolbar farm-toolbar">
+            <input class="table-search" type="text" placeholder="Search...">
+            <select class="table-filter">
+                <option>All locations</option>
+                <option>Gauteng</option>
+                <option>KwaZulu-Natal</option>
+                <option>Western Cape</option>
+            </select>
+            <button class="button primary add-record-btn" type="button">+ Add farm</button>
+        </section>
+
+        <section class="data-panel">
+            <div class="table-wrap">
+                <table class="management-table farms-table">
+                    <thead>
+                        <tr>
+                            <th>Farm</th>
+                            <th>Owner</th>
+                            <th>Location</th>
+                            <th>GPS</th>
+                            <th>Size</th>
+                            <th>Fields</th>
+                            <th>Crops</th>
+                            <th>Registered</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for farm in farms %}
+                            {% set farm_status = (farm.status or 'active') | lower %}
+                            <tr>
+                                <td>{{ farm.farm_name }}</td>
+                                <td>—</td>
+                                <td>{{ farm.location }}</td>
+                                <td>—</td>
+                                <td>{{ farm.size }} ha</td>
+                                <td>{{ farm.fields }}</td>
+                                <td>—</td>
+                                <td>{{ farm.created_at[:10] if farm.created_at else '' }}</td>
+                                <td>
+                                    <span class="record-status {{ farm_status }}">
+                                        {{ farm_status | title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button type="button" class="mini-btn secondary farm-view-btn" data-farm-id="{{ farm.id }}" data-name="{{ farm.farm_name }}" data-location="{{ farm.location }}" data-size="{{ farm.size }}" data-fields="{{ farm.fields }}" data-status="{{ farm_status }}">View</button>
+                                        <button type="button" class="mini-btn secondary farm-edit-btn" data-farm-id="{{ farm.id }}" data-name="{{ farm.farm_name }}" data-location="{{ farm.location }}" data-size="{{ farm.size }}" data-fields="{{ farm.fields }}" data-status="{{ farm_status }}">Edit</button>
+                                        <form method="post" action="{{ application_prefix }}{{ url_for('admin_update_farm', farm_id=farm.id) }}" class="inline-toggle-form">
+                                            <input type="hidden" name="status" value="{{ 'inactive' if farm_status == 'active' else 'active' }}">
+                                            <button class="mini-btn tertiary" type="submit">{{ 'Deactivate' if farm_status == 'active' else 'Activate' }}</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="10" class="empty-state">No farms found.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-footer">
+                <span>{{ farms|length }} records</span>
+                <div class="pagination-inline">
+                    <span>Previous</span>
+                    <span class="current-page">Page 1 of 1</span>
+                    <span>Next</span>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div id="farmModal" class="record-modal hidden" aria-hidden="true">
+    <div class="record-modal-backdrop" data-close-modal="true"></div>
+    <div class="record-modal-dialog record-modal-large" role="dialog" aria-modal="true" aria-labelledby="farmModalTitle">
+        <button class="modal-close" type="button" aria-label="Close">×</button>
+        <h2 id="farmModalTitle">Add farm</h2>
+
+        <form id="farmForm" method="post" action="{{ application_prefix }}{{ url_for('admin_create_farm') }}" class="record-form">
+            <div class="modal-grid three-column">
+                <label>
+                    Farm name
+                    <input type="text" name="farm_name" required>
+                </label>
+                <label>
+                    Location / address
+                    <input type="text" name="location" id="farmLocationInput" required>
+                </label>
+                <label>
+                    Status
+                    <select name="status">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="modal-grid two-column">
+                <label>
+                    Size (hectares)
+                    <input type="number" name="size" min="0" step="0.01" required>
+                </label>
+                <label>
+                    Number of fields
+                    <input type="number" name="fields" min="1" step="1" value="1" required>
+                </label>
+            </div>
+
+            <div class="map-preview-box">
+                <div id="farmModalMap" class="modal-map"></div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="button secondary" type="button" data-close-modal="true">Cancel</button>
+                <button class="button primary" type="submit">Save farm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+    const farmMap = L.map('farmMap', { zoomControl: true, scrollWheelZoom: false }).setView([-30.5595, 22.9375], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(farmMap);
+
+    const defaultMarker = L.marker([-30.5595, 22.9375]).addTo(farmMap);
+
+    function geocodeAddress(address, targetMap = farmMap, targetMarker = defaultMarker) {
+        if (!address || address.trim().length < 3) return;
+        const encoded = encodeURIComponent(address.trim());
+        fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encoded}`)
+            .then(response => response.json())
+            .then(results => {
+                if (!results || !results.length) return;
+                const lat = parseFloat(results[0].lat);
+                const lon = parseFloat(results[0].lon);
+                targetMap.setView([lat, lon], 12);
+                targetMarker.setLatLng([lat, lon]);
+            })
+            .catch(() => null);
+    }
+
+    const locationInput = document.getElementById('farmLocationInput');
+    if (locationInput) {
+        locationInput.addEventListener('input', function () {
+            clearTimeout(locationInput._geocodeTimer);
+            locationInput._geocodeTimer = setTimeout(function () {
+                geocodeAddress(locationInput.value, modalMap, modalMarker);
+            }, 500);
+        });
+    }
+
+    const farmModal = document.getElementById('farmModal');
+    const farmForm = document.getElementById('farmForm');
+    const farmModalTitle = document.getElementById('farmModalTitle');
+    const modalMap = L.map('farmModalMap', { zoomControl: true, scrollWheelZoom: false }).setView([-30.5595, 22.9375], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(modalMap);
+    const modalMarker = L.marker([-30.5595, 22.9375]).addTo(modalMap);
+
+    function openFarmModal(mode = 'create', farm = {}) {
+        farmModal.classList.remove('hidden');
+        farmModal.setAttribute('aria-hidden', 'false');
+
+        if (mode === 'edit') {
+            farmModalTitle.textContent = 'Edit farm';
+            farmForm.action = '{{ application_prefix }}' + '/admin/farms/' + farm.farmId + '/update';
+            farmForm.querySelector('[name="farm_name"]').value = farm.name || '';
+            farmForm.querySelector('[name="location"]').value = farm.location || '';
+            farmForm.querySelector('[name="size"]').value = farm.size || '';
+            farmForm.querySelector('[name="fields"]').value = farm.fields || 1;
+            farmForm.querySelector('[name="status"]').value = farm.status || 'active';
+            geocodeAddress(farm.location || '', modalMap, modalMarker);
+        } else {
+            farmModalTitle.textContent = 'Add farm';
+            farmForm.action = '{{ application_prefix }}{{ url_for("admin_create_farm") }}';
+            farmForm.reset();
+            farmForm.querySelector('[name="status"]').value = 'active';
+            farmForm.querySelector('[name="fields"]').value = '1';
+            modalMarker.setLatLng([-30.5595, 22.9375]);
+            modalMap.setView([-30.5595, 22.9375], 5);
+        }
+    }
+
+    function closeFarmModal() {
+        farmModal.classList.add('hidden');
+        farmModal.setAttribute('aria-hidden', 'true');
+    }
+
+    document.querySelector('.add-record-btn').addEventListener('click', function () {
+        openFarmModal('create');
+    });
+
+    document.querySelectorAll('.farm-edit-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+            openFarmModal('edit', {
+                farmId: button.dataset.farmId,
+                name: button.dataset.name,
+                location: button.dataset.location,
+                size: button.dataset.size,
+                fields: button.dataset.fields,
+                status: button.dataset.status
+            });
+        });
+    });
+
+    document.querySelectorAll('.farm-view-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+            openFarmModal('edit', {
+                farmId: button.dataset.farmId,
+                name: button.dataset.name,
+                location: button.dataset.location,
+                size: button.dataset.size,
+                fields: button.dataset.fields,
+                status: button.dataset.status
+            });
+            const fields = farmForm.querySelectorAll('input, select');
+            fields.forEach(function (field) {
+                field.setAttribute('readonly', true);
+                if (field.tagName === 'SELECT') {
+                    field.disabled = true;
+                }
+            });
+            farmForm.querySelector('.modal-actions .button.primary').style.display = 'none';
+        });
+    });
+
+    document.querySelector('.modal-close').addEventListener('click', closeFarmModal);
+    document.querySelectorAll('[data-close-modal="true"]').forEach(function (element) {
+        element.addEventListener('click', closeFarmModal);
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !farmModal.classList.contains('hidden')) {
+            closeFarmModal();
+        }
+    });
+
+    if (locationInput) {
+        locationInput.addEventListener('change', function () {
+            geocodeAddress(locationInput.value, modalMap, modalMarker);
+        });
+    }
+</script>
+{% endblock %}

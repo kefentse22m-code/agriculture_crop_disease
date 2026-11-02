@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}User Management | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Notifications</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
+            <a href="#">Projects</a>
+            <a href="#">Reports</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main user-main">
+        <div class="page-header">
+            <div>
+                <h1>User Management</h1>
+                <p>Add users, edit profiles and passwords, and activate or deactivate accounts.</p>
+            </div>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <section class="list-toolbar">
+            <input class="table-search" type="text" placeholder="Search...">
+            <select class="table-filter">
+                <option>All roles</option>
+                <option value="admin">Admin</option>
+                <option value="user">User</option>
+            </select>
+            <select class="table-filter">
+                <option>All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
+            </select>
+            <button class="button primary add-record-btn" type="button">+ Add user</button>
+        </section>
+
+        <section class="data-panel">
+            <div class="table-wrap">
+                <table class="management-table users-table">
+                    <thead>
+                        <tr>
+                            <th>Full name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Registered</th>
+                            <th>Farm</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                            {% set user_role = (user.role or 'user') | lower %}
+                            {% set user_status = (user.status or 'active') | lower %}
+                            <tr>
+                                <td>{{ user.name }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user_role | title }}</td>
+                                <td>{{ user.created_at[:10] if user.created_at else '' }}</td>
+                                <td>{{ user.farm_name or '—' }}</td>
+                                <td>
+                                    <span class="record-status {{ user_status }}">
+                                        {{ user_status | title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button type="button" class="mini-btn secondary user-view-btn" data-user-id="{{ user.id }}" data-name="{{ user.name }}" data-email="{{ user.email }}" data-role="{{ user_role }}" data-farm="{{ user.farm_name or '' }}" data-status="{{ user_status }}">View</button>
+                                        <button type="button" class="mini-btn secondary user-edit-btn" data-user-id="{{ user.id }}" data-name="{{ user.name }}" data-email="{{ user.email }}" data-role="{{ user_role }}" data-farm="{{ user.farm_name or '' }}" data-status="{{ user_status }}">Edit</button>
+                                        <form method="post" action="{{ application_prefix }}{{ url_for('admin_update_user', user_id=user.id) }}" class="inline-toggle-form">
+                                            <input type="hidden" name="status" value="{{ 'inactive' if user_status == 'active' else 'active' }}">
+                                            <button class="mini-btn tertiary" type="submit">{{ 'Deactivate' if user_status == 'active' else 'Activate' }}</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="empty-state">No users found.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-footer">
+                <span>{{ users|length }} records</span>
+                <div class="pagination-inline">
+                    <span>Previous</span>
+                    <span class="current-page">Page 1 of 1</span>
+                    <span>Next</span>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div id="userModal" class="record-modal hidden" aria-hidden="true">
+    <div class="record-modal-backdrop" data-close-modal="true"></div>
+    <div class="record-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+        <button class="modal-close" type="button" aria-label="Close">×</button>
+        <h2 id="userModalTitle">Add user</h2>
+
+        <form id="userForm" method="post" action="{{ application_prefix }}{{ url_for('admin_create_user') }}" class="record-form">
+            <div class="modal-grid two-column">
+                <label>
+                    Full name
+                    <input type="text" name="name" required>
+                </label>
+                <label>
+                    Email
+                    <input type="email" name="email" required>
+                </label>
+            </div>
+
+            <div class="modal-grid three-column">
+                <label>
+                    Role
+                    <select name="role">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </label>
+                <label>
+                    Status
+                    <select name="status">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="suspended">Suspended</option>
+                    </select>
+                </label>
+                <label>
+                    Farm name
+                    <input type="text" name="farm_name" placeholder="Optional">
+                </label>
+            </div>
+
+            <div class="modal-grid one-column">
+                <label>
+                    Password
+                    <input type="password" name="password" required>
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button class="button secondary" type="button" data-close-modal="true">Cancel</button>
+                <button class="button primary" type="submit">Save user</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const userModal = document.getElementById('userModal');
+    const userForm = document.getElementById('userForm');
+    const userModalTitle = document.getElementById('userModalTitle');
+
+    function openUserModal(mode = 'create', user = {}) {
+        userModal.classList.remove('hidden');
+        userModal.setAttribute('aria-hidden', 'false');
+
+        if (mode === 'edit') {
+            userModalTitle.textContent = 'Edit user';
+            userForm.action = '{{ application_prefix }}' + '/admin/users/' + user.userId + '/update';
+            userForm.querySelector('[name="name"]').value = user.name || '';
+            userForm.querySelector('[name="email"]').value = user.email || '';
+            userForm.querySelector('[name="role"]').value = user.role || 'user';
+            userForm.querySelector('[name="status"]').value = user.status || 'active';
+            userForm.querySelector('[name="farm_name"]').value = user.farm || '';
+            userForm.querySelector('[name="password"]').required = false;
+            userForm.querySelector('[name="password"]').placeholder = 'Leave blank to keep current password';
+        } else {
+            userModalTitle.textContent = 'Add user';
+            userForm.action = '{{ application_prefix }}{{ url_for("admin_create_user") }}';
+            userForm.reset();
+            userForm.querySelector('[name="role"]').value = 'user';
+            userForm.querySelector('[name="status"]').value = 'active';
+            userForm.querySelector('[name="password"]').required = true;
+            userForm.querySelector('[name="password"]').placeholder = '';
+        }
+    }
+
+    function closeUserModal() {
+        userModal.classList.add('hidden');
+        userModal.setAttribute('aria-hidden', 'true');
+    }
+
+    document.querySelector('.add-record-btn').addEventListener('click', function () {
+        openUserModal('create');
+    });
+
+    document.querySelectorAll('.user-edit-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+            openUserModal('edit', {
+                userId: button.dataset.userId,
+                name: button.dataset.name,
+                email: button.dataset.email,
+                role: button.dataset.role,
+                farm: button.dataset.farm,
+                status: button.dataset.status
+            });
+        });
+    });
+
+    document.querySelectorAll('.user-view-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+            openUserModal('edit', {
+                userId: button.dataset.userId,
+                name: button.dataset.name,
+                email: button.dataset.email,
+                role: button.dataset.role,
+                farm: button.dataset.farm,
+                status: button.dataset.status
+            });
+            const formFields = userForm.querySelectorAll('input, select');
+            formFields.forEach(function (field) {
+                if (field.name !== 'password') {
+                    field.setAttribute('readonly', true);
+                }
+                if (field.tagName === 'SELECT') {
+                    field.disabled = true;
+                }
+            });
+            const passwordField = userForm.querySelector('[name="password"]');
+            if (passwordField) {
+                passwordField.parentElement.style.display = 'none';
+            }
+            const saveButton = userForm.querySelector('.modal-actions .button.primary');
+            if (saveButton) {
+                saveButton.style.display = 'none';
+            }
+        });
+    });
+
+    document.querySelector('.modal-close').addEventListener('click', closeUserModal);
+    document.querySelectorAll('[data-close-modal="true"]').forEach(function (element) {
+        element.addEventListener('click', closeUserModal);
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !userModal.classList.contains('hidden')) {
+            closeUserModal();
+        }
+    });
+</script>
+{% endblock %}

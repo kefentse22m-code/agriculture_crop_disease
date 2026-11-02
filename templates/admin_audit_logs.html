@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Push Notifications</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_alerts') }}">Alerts</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
+            <a href="#">Reports</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main audit-main">
+        <div class="page-header audit-header">
+            <div>
+                <h1>Audit Logs</h1>
+                <p>Every important admin action is recorded automatically.</p>
+            </div>
+        </div>
+
+        <div class="audit-toolbar">
+            <form method="get" action="{{ application_prefix }}{{ url_for('admin_audit_logs') }}" class="audit-toolbar-form">
+                <input type="search" name="search" value="{{ search }}" placeholder="Search logs..." class="audit-search">
+                <select name="status" class="audit-select">
+                    <option value="All statuses" {% if status_filter == 'All statuses' %}selected{% endif %}>All statuses</option>
+                    <option value="success" {% if status_filter == 'success' %}selected{% endif %}>Success</option>
+                    <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Failed</option>
+                </select>
+                <label class="audit-readonly-toggle">
+                    <input type="checkbox" checked>
+                    <span>Read-only</span>
+                </label>
+            </form>
+            <button class="button secondary audit-export-btn" type="button">Export CSV</button>
+        </div>
+
+        <section class="data-panel audit-panel">
+            <div class="table-wrap">
+                <table class="management-table audit-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Activity</th>
+                            <th>Affected record</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in audit_logs %}
+                            <tr>
+                                <td>{{ log.user_name or 'System' }}</td>
+                                <td>{{ log.activity or '—' }}</td>
+                                <td>{{ log.affected_record or '—' }}</td>
+                                <td>{{ (log.activity_date or log.created_at[:10]) if log.activity_date or log.created_at else '—' }}</td>
+                                <td>{{ log.activity_time or (log.created_at[11:16] if log.created_at else '') }}</td>
+                                <td>
+                                    {% set log_status = (log.status or 'success') | lower %}
+                                    <span class="status-badge {{ 'success' if log_status == 'success' else 'failed' }}">
+                                        {{ log_status | title }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="empty-state">No audit logs available yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

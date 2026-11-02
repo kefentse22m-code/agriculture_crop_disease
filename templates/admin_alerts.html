@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Alerts | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Push Notifications</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_alerts') }}">Alerts</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
+            <a href="#">Projects</a>
+            <a href="#">Reports</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main alert-main">
+        <div class="alert-title-wrap">
+            <h1>Alerts &amp; Notifications</h1>
+            <p>All alerts raised for farmers. Review submitted push notifications and confirm whether they have been fixed.</p>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <div class="alert-toolbar">
+            <form method="get" class="alert-toolbar-form">
+                <input class="alert-search" type="search" name="search" value="{{ search_term }}" placeholder="Search alerts...">
+
+                <select class="alert-select" name="category">
+                    <option value="All categories" {% if category_filter == 'All categories' %}selected{% endif %}>All categories</option>
+                    {% for category in ['Crop Disease', 'Irrigation', 'Weather', 'Harvests', 'Soil Conditions'] %}
+                        <option value="{{ category }}" {% if category_filter == category %}selected{% endif %}>{{ category }}</option>
+                    {% endfor %}
+                </select>
+
+                <select class="alert-select" name="severity">
+                    <option value="All severities" {% if severity_filter == 'All severities' %}selected{% endif %}>All severities</option>
+                    {% for severity in ['Low', 'Medium', 'High'] %}
+                        <option value="{{ severity }}" {% if severity_filter == severity %}selected{% endif %}>{{ severity }}</option>
+                    {% endfor %}
+                </select>
+
+                <select class="alert-select" name="status">
+                    <option value="All statuses" {% if status_filter == 'All statuses' %}selected{% endif %}>All statuses</option>
+                    {% for status in ['Open', 'Reviewed', 'Resolved'] %}
+                        <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            <a class="button secondary alert-send-btn" href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Send push notification</a>
+        </div>
+
+        <section class="alert-panel">
+            <table class="alert-table">
+                <thead>
+                    <tr>
+                        <th>Alert</th>
+                        <th>Category</th>
+                        <th>Severity</th>
+                        <th>Related</th>
+                        <th>User</th>
+                        <th>When</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alert in alerts %}
+                        <tr>
+                            <td>
+                                <div class="alert-title">{{ alert.title }}</div>
+                                <div class="alert-message">{{ alert.message }}</div>
+                            </td>
+                            <td>{{ alert.category }}</td>
+                            <td>
+                                <span class="severity-badge {{ alert.severity|lower }}">{{ alert.severity }}</span>
+                            </td>
+                            <td>{{ alert.related }}</td>
+                            <td>{{ alert.user }}</td>
+                            <td>{{ alert.when }}</td>
+                            <td>
+                                <span class="alert-status {{ alert.status|lower|replace(' ', '-') }}">{{ alert.status }}</span>
+                            </td>
+                            <td>
+                                <div class="alert-action-row">
+                                    <form method="post" action="{{ application_prefix }}{{ url_for('admin_alerts') }}">
+                                        <input type="hidden" name="action" value="review_alert">
+                                        <input type="hidden" name="alert_id" value="{{ alert.id }}">
+                                        <button class="button secondary mini" type="submit">Review</button>
+                                    </form>
+                                    <form method="post" action="{{ application_prefix }}{{ url_for('admin_alerts') }}">
+                                        <input type="hidden" name="action" value="resolve_alert">
+                                        <input type="hidden" name="alert_id" value="{{ alert.id }}">
+                                        <button class="button primary mini" type="submit">Resolve</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="empty-state">No alerts match the current filters.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+</div>
+{% endblock %}

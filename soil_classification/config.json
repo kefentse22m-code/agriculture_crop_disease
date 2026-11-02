@@ -1,0 +1,8 @@
+{
+  "name": "Soil Classification",
+  "description": "Image-based soil type classification with farming advice",
+  "version": "1.0.0",
+  "model_type": "YOLO classification",
+  "supported_formats": ["jpg", "jpeg", "png"],
+  "classes": ["Clay", "Sandy", "Loamy", "Black", "Peat"]
+}

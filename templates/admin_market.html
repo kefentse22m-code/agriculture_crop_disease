@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Market Data | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Notifications</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
+            <a href="#">Reports</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main market-main">
+        <div class="page-header market-header">
+            <div>
+                <h1>Market Management</h1>
+                <p>Fruit and vegetable price ranges at South African markets (ZAR).</p>
+            </div>
+        </div>
+
+        <form method="get" class="market-controls" action="{{ application_prefix }}{{ url_for('admin_market') }}">
+            <select name="market" class="market-select">
+                {% for name in market_names %}
+                    <option value="{{ name }}" {% if selected_market == name %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+            <select name="type" class="market-select secondary">
+                {% for type_name in type_names %}
+                    <option value="{{ type_name }}" {% if selected_type == type_name %}selected{% endif %}>{{ type_name }}</option>
+                {% endfor %}
+            </select>
+            <input type="search" name="search" placeholder="Search produce..." value="{{ search }}" class="market-search">
+        </form>
+
+        <section class="data-panel market-panel">
+            <div class="table-wrap">
+                <table class="management-table market-table">
+                    <thead>
+                        <tr>
+                            <th>Produce</th>
+                            <th>Type</th>
+                            <th>Min</th>
+                            <th>Average</th>
+                            <th>Max</th>
+                            <th>Unit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in market_items %}
+                            <tr>
+                                <td>{{ item.produce }}</td>
+                                <td>
+                                    <span class="market-type-badge {{ 'fruit' if item.type|lower == 'fruit' else 'vegetable' }}">
+                                        {{ item.type }}
+                                    </span>
+                                </td>
+                                <td>R {{ '%.2f'|format(item.min) }}</td>
+                                <td>R {{ '%.2f'|format(item.average) }}</td>
+                                <td>R {{ '%.2f'|format(item.max) }}</td>
+                                <td>{{ item.unit }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="empty-state">No market data found for the selected filters.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

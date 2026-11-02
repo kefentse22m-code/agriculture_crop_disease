@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Irrigation Management | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_irrigation') }}">Irrigation Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Push Notifications</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_alerts') }}">Alerts</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
+            <a href="#">Projects</a>
+            <a href="#">Reports</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main irrigation-main">
+        <div class="irrigation-header">
+            <h1>Irrigation Management</h1>
+            <p>Farm-side irrigation status with crop moisture, humidity and field recommendations.</p>
+        </div>
+
+        <section class="irrigation-summary-grid">
+            <article class="irrigation-summary-card">
+                <span>Total records</span>
+                <strong>{{ total_records }}</strong>
+            </article>
+            <article class="irrigation-summary-card">
+                <span>Avg soil moisture</span>
+                <strong>{{ avg_soil_moisture }}%</strong>
+            </article>
+            <article class="irrigation-summary-card">
+                <span>Avg humidity</span>
+                <strong>{{ avg_humidity }}%</strong>
+            </article>
+            <article class="irrigation-summary-card warning">
+                <span>Low moisture alerts</span>
+                <strong>{{ low_moisture }}</strong>
+            </article>
+        </section>
+
+        <section class="irrigation-panel">
+            <div class="irrigation-toolbar">
+                <div class="irrigation-search-wrap">
+                    <span class="irrigation-toolbar-label">Live field view</span>
+                </div>
+                <a class="button primary" href="{{ application_prefix }}{{ url_for('admin_weather') }}">Back to weather</a>
+            </div>
+
+            <div class="table-wrap">
+                <table class="irrigation-table">
+                    <thead>
+                        <tr>
+                            <th>Farmer</th>
+                            <th>Farm</th>
+                            <th>Crop</th>
+                            <th>Stage</th>
+                            <th>Soil</th>
+                            <th>Moisture</th>
+                            <th>Humidity</th>
+                            <th>Rain 3D</th>
+                            <th>Last watered</th>
+                            <th>Status</th>
+                            <th>Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in irrigation_logs %}
+                            <tr>
+                                <td>{{ entry.farmer_name }}</td>
+                                <td>{{ entry.farm_name }}</td>
+                                <td>{{ entry.crop_name }}<br><small>{{ entry.variety }}</small></td>
+                                <td>{{ entry.stage }}</td>
+                                <td>{{ entry.soil_type }}</td>
+                                <td>{{ entry.moisture_percent }}%</td>
+                                <td>{{ entry.humidity_percent }}%</td>
+                                <td>{{ entry.rain_3d_mm }} mm</td>
+                                <td>{{ entry.last_watered }}</td>
+                                <td>
+                                    <span class="irrigation-status {{ entry.status|replace(' ', '-')|lower }}">
+                                        {{ entry.status }}
+                                    </span>
+                                </td>
+                                <td>{{ entry.recommendation }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="11" class="empty-state">No irrigation data available yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Weather Management | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_irrigation') }}">Irrigation Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Push Notifications</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_alerts') }}">Alerts</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
+            <a href="#">Projects</a>
+            <a href="#">Reports</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main weather-main">
+        <div class="weather-header">
+            <h1>Weather Management</h1>
+            <p>Live weather across South African farming areas (Open-Meteo).</p>
+        </div>
+
+        <div class="weather-summary-strip">
+            <div class="weather-live-badge">Live API</div>
+            <div class="weather-provider">Provider: Open-Meteo · Updated {{ selected.updated_at if selected.updated_at else 'now' }}</div>
+            <a class="weather-refresh" href="{{ application_prefix }}{{ url_for('admin_weather') }}">↻ Refresh</a>
+            <a class="weather-refresh" href="{{ application_prefix }}{{ url_for('admin_irrigation') }}">View irrigation</a>
+        </div>
+
+        <section class="weather-grid">
+            {% for location in locations %}
+                <a class="weather-card {{ 'selected' if selected.name == location.name else '' }}" href="{{ application_prefix }}{{ url_for('admin_weather', area=location.name) }}">
+                    <div class="weather-card-name">{{ location.name }}</div>
+                    <div class="weather-card-temp">{{ location.temperature_display or location.temperature ~ '°C' }}</div>
+                    <div class="weather-card-meta">{{ location.condition }} · {{ location.humidity }}% · {{ location.wind_speed }} km/h</div>
+                </a>
+            {% endfor %}
+        </section>
+
+        <section class="forecast-panel">
+            <h2>7-day forecast · {{ selected.name }}</h2>
+            <div class="forecast-table-wrap">
+                <table class="forecast-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Condition</th>
+                            <th>Min</th>
+                            <th>Max</th>
+                            <th>Rain</th>
+                            <th>Rain chance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for day in selected.forecast %}
+                            <tr>
+                                <td>{{ day.date }}</td>
+                                <td>{{ day.condition }}</td>
+                                <td>{{ day.low }}</td>
+                                <td>{{ day.high }}</td>
+                                <td>{{ day.rain }}</td>
+                                <td>{{ day.rain_chance }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="empty-state">No forecast available.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

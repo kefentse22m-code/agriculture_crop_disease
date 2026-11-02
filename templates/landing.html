@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Smart Agriculture Platform{% endblock %}
+
+{% block body %}
+<header class="site-header">
+    <a class="brand" href="{{ application_prefix }}{{ url_for('landing') }}">
+        <span class="brand-mark">SA</span>
+        <span>Smart Agriculture</span>
+    </a>
+    <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#impact">Impact</a>
+        <a class="nav-button" href="{{ application_prefix }}{{ url_for('login') }}">Login</a>
+    </nav>
+</header>
+
+<main>
+    <section class="hero">
+        <div class="hero-copy">
+            <p class="eyebrow">Data-led farm management</p>
+            <h1>Smarter decisions for healthier crops, soil, and irrigation.</h1>
+            <p>
+                Monitor farm projects, manage predictions, and give every user a focused
+                dashboard for agricultural tools as the platform grows.
+            </p>
+            <div class="hero-actions">
+                <a class="button primary" href="{{ application_prefix }}{{ url_for('register') }}">Create account</a>
+                <a class="button secondary" href="{{ application_prefix }}{{ url_for('login') }}">Sign in</a>
+            </div>
+        </div>
+        <div class="hero-panel" aria-label="Farm intelligence preview">
+            <div class="weather-strip">
+                <span id="weatherField">Field A</span>
+                <strong id="weatherTemp">24 C</strong>
+                <span id="weatherMoisture">Moisture 68%</span>
+            </div>
+            <div class="weather-summary-grid" id="weatherSummaryGrid">
+                <article>
+                    <span>Condition</span>
+                    <strong>Loading</strong>
+                </article>
+            </div>
+            <div class="weather-details" aria-label="Current weather details">
+                <span id="weatherWind">Wind -- km/h</span>
+                <span id="weatherRain">Rain -- mm</span>
+                <span id="weatherSource">WeatherAPI</span>
+            </div>
+            <div class="weather-forecast" id="weatherForecast" aria-label="Three day forecast"></div>
+            <div class="farm-workflow-strip">
+                <article>
+                    <span>Active tools</span>
+                    <strong>3</strong>
+                </article>
+                <article>
+                    <span>Guidance layer</span>
+                    <strong>AI reports</strong>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="section market-section" id="market">
+        <div class="section-heading market-heading">
+            <div>
+                <p class="eyebrow">Farmazone produce watch</p>
+                <h2>Fresh produce clearing indicators.</h2>
+            </div>
+            <a class="market-source" id="marketSource" href="https://farmazone.co.za/produce/" target="_blank" rel="noopener">View Farmazone source</a>
+        </div>
+        <div class="market-stats" id="marketStats"></div>
+        <div class="market-grid" id="marketGrid">
+            <article class="market-card loading">Loading produce indicators...</article>
+        </div>
+        <p class="market-note" id="marketNote">Produce indicators are collected from Farmazone and intended for market awareness.</p>
+    </section>
+
+    <section class="section" id="features">
+        <div class="section-heading">
+            <p class="eyebrow">Agriculture workspace</p>
+            <h2>Focused tools for everyday farm decisions.</h2>
+        </div>
+        <div class="feature-grid">
+            <article class="feature-card">
+                <span class="feature-icon">01</span>
+                <h3>Crop disease detection</h3>
+                <p>Upload a leaf image, classify the crop condition, and receive practical treatment guidance with model confidence.</p>
+            </article>
+            <article class="feature-card">
+                <span class="feature-icon">02</span>
+                <h3>Soil classification</h3>
+                <p>Identify soil type from an image and get crop suitability, fertilizer, irrigation, and improvement recommendations.</p>
+            </article>
+            <article class="feature-card">
+                <span class="feature-icon">03</span>
+                <h3>Irrigation planning</h3>
+                <p>Select the farm location on a map, combine field inputs with WeatherAPI data, and predict irrigation need.</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="impact-band" id="impact">
+        <div>
+            <p class="eyebrow">Field intelligence</p>
+            <h2>Weather, models, and advice in one place.</h2>
+        </div>
+        <p>
+            Smart Agriculture brings image analysis, local weather, prediction models, and saved project history into a single dashboard for faster farm decisions.
+        </p>
+    </section>
+</main>
+
+<script>
+const marketGrid = document.getElementById("marketGrid");
+const marketNote = document.getElementById("marketNote");
+const marketSource = document.getElementById("marketSource");
+const marketStats = document.getElementById("marketStats");
+const weatherField = document.getElementById("weatherField");
+const weatherTemp = document.getElementById("weatherTemp");
+const weatherMoisture = document.getElementById("weatherMoisture");
+const weatherWind = document.getElementById("weatherWind");
+const weatherRain = document.getElementById("weatherRain");
+const weatherSource = document.getElementById("weatherSource");
+const weatherSummaryGrid = document.getElementById("weatherSummaryGrid");
+const weatherForecast = document.getElementById("weatherForecast");
+
+function renderWeather(data) {
+    weatherField.textContent = data.field || "Field A";
+    weatherTemp.textContent = data.temperature_display || "Weather unavailable";
+    weatherMoisture.textContent = data.moisture_display || "Moisture unavailable";
+    weatherWind.textContent = data.wind_display ? `Wind ${data.wind_display}` : "Wind -- km/h";
+    weatherRain.textContent = data.rain_display ? `Rain ${data.rain_display}` : "Rain -- mm";
+    weatherSource.textContent = data.source || (data.success ? "WeatherAPI live" : "Weather unavailable");
+    weatherSummaryGrid.innerHTML = (data.summary_cards || []).map((item) => `
+        <article>
+            <span>${item.label}</span>
+            <strong>${item.value}</strong>
+        </article>
+    `).join("");
+    weatherForecast.innerHTML = (data.forecast || []).map((day) => `
+        <article>
+            <span>${day.date}</span>
+            <strong>${day.high} / ${day.low}</strong>
+            <small>${day.condition} / Rain ${day.rain_chance} / Wind ${day.wind}</small>
+        </article>
+    `).join("");
+}
+
+function renderFarmazoneMarket(data) {
+    if (!data.indicators || data.indicators.length === 0) {
+        marketGrid.innerHTML = `<article class="market-card loading">Produce indicators are unavailable right now.</article>`;
+        marketStats.innerHTML = "";
+        marketNote.textContent = "Refresh later, or check your internet connection on the server.";
+        return;
+    }
+
+    marketSource.href = data.source_url || "https://farmazone.co.za/produce/";
+    marketStats.innerHTML = (data.stats || []).map((item) => `
+        <article class="market-stat">
+            <strong>${item.value}</strong>
+            <span>${item.label}</span>
+        </article>
+    `).join("");
+    marketGrid.innerHTML = data.indicators.map((item) => {
+        return `
+            <article class="market-card">
+                <div>
+                    <span>${item.market}</span>
+                    <h3>${item.name}</h3>
+                </div>
+                <strong>${item.price_display}</strong>
+                <small>Farmazone wholesale platform</small>
+            </article>
+        `;
+    }).join("");
+    const freshness = data.success ? `Updated ${data.updated_at}.` : "Showing cached sample data because the live Farmazone fetch is unavailable.";
+    marketNote.textContent = `${freshness} Produce indicators are intended for market awareness.`;
+}
+
+fetch("{{ application_prefix }}{{ url_for('market_prices') }}")
+    .then((response) => response.json())
+    .then(renderFarmazoneMarket)
+    .catch(() => {
+        marketGrid.innerHTML = `<article class="market-card loading">Produce indicators are unavailable right now.</article>`;
+        marketStats.innerHTML = "";
+        marketNote.textContent = "Refresh later, or check your internet connection on the server.";
+    });
+
+fetch("{{ application_prefix }}{{ url_for('weather_summary') }}")
+    .then((response) => response.json())
+    .then(renderWeather)
+    .catch(() => {
+        weatherSource.textContent = "Weather unavailable";
+    });
+</script>
+{% endblock %}

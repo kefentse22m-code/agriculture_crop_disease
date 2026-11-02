@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Push Notifications | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Push Notifications</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_alerts') }}">Alerts</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
+            <a href="#">Projects</a>
+            <a href="#">Reports</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main notification-main">
+        <div class="page-header notification-header">
+            <div>
+                <h1>Push Notifications</h1>
+                <p>Send in-app push notifications to farmers by location. They appear on the farmer's Alerts page.</p>
+            </div>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <div class="notification-layout">
+            <section class="notification-form-panel">
+                <div class="notification-card-title">
+                    <span class="notification-icon">✉</span>
+                    <h2>New push notification</h2>
+                </div>
+
+                <form method="post" action="{{ application_prefix }}{{ url_for('admin_push_notifications') }}" class="notification-form">
+                    <label>
+                        <span>Title</span>
+                        <input type="text" name="title" placeholder="e.g. Frost warning tonight" value="{{ request.form.get('title', '') }}" required>
+                    </label>
+
+                    <label>
+                        <span>Message</span>
+                        <textarea name="message" rows="4" placeholder="Cover seedlings and delay irrigation until morning." required>{{ request.form.get('message', '') }}</textarea>
+                    </label>
+
+                    <div class="notification-form-grid">
+                        <label>
+                            <span>Location</span>
+                            <select name="location">
+                                <option value="All locations" {% if selected_location == 'All locations' %}selected{% endif %}>All locations</option>
+                                {% for farm in farms %}
+                                    <option value="{{ farm }}" {% if selected_location == farm %}selected{% endif %}>{{ farm }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <label>
+                            <span>Category</span>
+                            <select name="category">
+                                <option value="Weather" {% if selected_category == 'Weather' %}selected{% endif %}>Weather</option>
+                                <option value="Irrigation" {% if selected_category == 'Irrigation' %}selected{% endif %}>Irrigation</option>
+                                <option value="Fieldwork" {% if selected_category == 'Fieldwork' %}selected{% endif %}>Fieldwork</option>
+                                <option value="Market" {% if selected_category == 'Market' %}selected{% endif %}>Market</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            <span>Priority</span>
+                            <select name="priority">
+                                <option value="Low" {% if selected_priority == 'Low' %}selected{% endif %}>Low</option>
+                                <option value="Medium" {% if selected_priority == 'Medium' %}selected{% endif %}>Medium</option>
+                                <option value="High" {% if selected_priority == 'High' %}selected{% endif %}>High</option>
+                                <option value="Critical" {% if selected_priority == 'Critical' %}selected{% endif %}>Critical</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="notification-footnote">
+                        {% if farms %}
+                            Will reach {{ farms|length }} active farmers.
+                        {% else %}
+                            Will reach all active farmers.
+                        {% endif %}
+                    </div>
+
+                    <button class="button primary notification-submit" type="submit">
+                        <span>✈</span>
+                        Send push notification
+                    </button>
+                </form>
+            </section>
+
+            <section class="notification-list-panel">
+                <h2>Sent notifications</h2>
+                <div class="notification-filter-row">
+                    <select class="notification-filter" onchange="location.href='{{ application_prefix }}{{ url_for('admin_push_notifications') }}?status=' + this.value">
+                        <option value="All statuses" {% if status_filter == 'All statuses' %}selected{% endif %}>All statuses</option>
+                        <option value="Open" {% if status_filter == 'Open' %}selected{% endif %}>Open</option>
+                        <option value="Reviewed" {% if status_filter == 'Reviewed' %}selected{% endif %}>Reviewed</option>
+                        <option value="Resolved" {% if status_filter == 'Resolved' %}selected{% endif %}>Resolved</option>
+                        <option value="Unresolved" {% if status_filter == 'Unresolved' %}selected{% endif %}>Unresolved</option>
+                    </select>
+                </div>
+
+                {% if notifications %}
+                    <div class="sent-notifications-list">
+                        {% for item in notifications %}
+                            <article class="sent-notification-item">
+                                <div class="sent-notification-topline">
+                                    <h3>{{ item.title }}</h3>
+                                    <span class="priority-badge {{ item.priority|lower }}">{{ item.priority }}</span>
+                                </div>
+                                <p>{{ item.message }}</p>
+                                <div class="sent-notification-meta">
+                                    <span>{{ item.location }}</span>
+                                    <span>{{ item.category }}</span>
+                                    <span>{{ item.created_at }}</span>
+                                    <span class="notification-status-pill {{ (item.status or 'Open')|lower|replace(' ', '-') }}">{{ item.status or 'Open' }}</span>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-notification-state">Nothing sent yet.</div>
+                {% endif %}
+            </section>
+        </div>
+
+        {% if unresolved_alerts %}
+            <section class="notification-list-panel unresolved-alert-panel">
+                <h2>Unresolved alerts</h2>
+                <div class="sent-notifications-list">
+                    {% for alert in unresolved_alerts %}
+                        <article class="sent-notification-item">
+                            <div class="sent-notification-topline">
+                                <h3>{{ alert.title }}</h3>
+                                <span class="severity-badge {{ alert.severity|lower }}">{{ alert.severity }}</span>
+                            </div>
+                            <p>{{ alert.message }}</p>
+                            <div class="sent-notification-meta">
+                                <span>{{ alert.related }}</span>
+                                <span>{{ alert.category }}</span>
+                                <span>{{ alert.when }}</span>
+                                <span class="notification-status-pill {{ alert.status|lower|replace(' ', '-') }}">{{ alert.status }}</span>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}

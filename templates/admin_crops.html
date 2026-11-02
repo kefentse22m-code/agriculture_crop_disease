@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Crop Management | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Notifications</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
+            <a href="#">Projects</a>
+            <a href="#">Reports</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main crop-main">
+        <div class="crop-header">
+            <div>
+                <h1>Crop Management</h1>
+                <p>The crop catalogue shared with the farmer portal.</p>
+            </div>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <section class="crop-manager">
+            <div class="crop-toolbar">
+                <input class="crop-search" type="text" placeholder="Search...">
+                <select class="crop-filter" aria-label="Filter by status">
+                    <option>All statuses</option>
+                    <option>Active</option>
+                    <option>Inactive</option>
+                </select>
+                <button class="button primary crop-add-btn" type="button">+ Add crop</button>
+            </div>
+
+            <div class="table-wrap crop-table-wrap">
+                <table class="crop-table">
+                    <thead>
+                        <tr>
+                            <th>Crop</th>
+                            <th>Varieties</th>
+                            <th>Maturity</th>
+                            <th>Growth stages</th>
+                            <th>Diseases</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for crop in crops %}
+                            {% set crop_status = (crop.status or 'active') | lower %}
+                            <tr>
+                                <td>{{ crop.crop_name }}</td>
+                                <td>{{ crop.varieties or '—' }}</td>
+                                <td>{{ crop.maturity_period or '—' }}</td>
+                                <td>{{ crop.growth_stage or '—' }}</td>
+                                <td>{{ crop.supported_disease_category or '—' }}</td>
+                                <td>
+                                    <span class="crop-status {{ 'active' if crop_status == 'active' else 'inactive' }}">
+                                        {{ crop_status | title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="crop-actions">
+                                        <button class="mini-btn secondary crop-view-btn" type="button" data-crop-id="{{ crop.id }}" data-crop-name="{{ crop.crop_name }}" data-varieties="{{ crop.varieties or '' }}" data-maturity="{{ crop.maturity_period or '' }}" data-growth="{{ crop.growth_stage or '' }}" data-disease="{{ crop.supported_disease_category or '' }}" data-status="{{ crop_status }}">View</button>
+                                        <button class="mini-btn secondary crop-edit-btn" type="button" data-crop-id="{{ crop.id }}" data-crop-name="{{ crop.crop_name }}" data-varieties="{{ crop.varieties or '' }}" data-maturity="{{ crop.maturity_period or '' }}" data-growth="{{ crop.growth_stage or '' }}" data-disease="{{ crop.supported_disease_category or '' }}" data-status="{{ crop_status }}">Edit</button>
+                                        <form method="post" action="{{ application_prefix }}{{ url_for('admin_update_crop', crop_id=crop.id) }}" class="inline-toggle-form">
+                                            <input type="hidden" name="status" value="{{ 'inactive' if crop_status == 'active' else 'active' }}">
+                                            <button class="mini-btn tertiary" type="submit">{{ 'Deactivate' if crop_status == 'active' else 'Activate' }}</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="empty-state">No crop records found.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="crop-pagination">
+                <span>6 records</span>
+                <div class="pagination-links">
+                    <span>Previous</span>
+                    <span class="page-current">Page 1 of 1</span>
+                    <span>Next</span>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div id="cropModal" class="crop-modal hidden" aria-hidden="true">
+    <div class="crop-modal-backdrop" data-close-modal="true"></div>
+    <div class="crop-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="cropModalTitle">
+        <button class="modal-close" type="button" aria-label="Close">×</button>
+        <h2 id="cropModalTitle">Add crop</h2>
+
+        <form id="cropForm" method="post" action="{{ application_prefix }}{{ url_for('admin_create_crop') }}" class="crop-modal-form">
+            <div class="modal-grid">
+                <label>
+                    Crop name
+                    <input type="text" name="crop_name" required>
+                </label>
+                <label>
+                    Status
+                    <select name="status">
+                        <option value="active" selected>Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="modal-grid two-column">
+                <label>
+                    Varieties
+                    <input type="text" name="varieties" placeholder="Yellow, White">
+                </label>
+                <label>
+                    Maturity period
+                    <input type="text" name="maturity_period" placeholder="120 days">
+                </label>
+            </div>
+
+            <div class="modal-grid two-column">
+                <label>
+                    Growth stages
+                    <input type="text" name="growth_stage" placeholder="Germination, Flowering">
+                </label>
+                <label>
+                    Supported disease category
+                    <input type="text" name="supported_disease_category" placeholder="Rust, blight">
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button class="button secondary" type="button" data-close-modal="true">Cancel</button>
+                <button class="button primary" type="submit">Save crop</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const cropModal = document.getElementById('cropModal');
+    const cropForm = document.getElementById('cropForm');
+    const cropModalTitle = document.getElementById('cropModalTitle');
+
+    function openCropModal(mode = 'create', data = {}) {
+        cropModal.classList.remove('hidden');
+        cropModal.setAttribute('aria-hidden', 'false');
+
+        cropForm.querySelectorAll('input, select').forEach(function (field) {
+            field.removeAttribute('readonly');
+            field.disabled = false;
+        });
+        cropForm.querySelector('.modal-actions .button.primary').style.display = 'inline-flex';
+
+        if (mode === 'edit') {
+            cropModalTitle.textContent = 'Edit crop';
+            cropForm.action = '{{ application_prefix }}' + '/admin/crops/' + data.id + '/update';
+            cropForm.querySelector('[name="crop_name"]').value = data.crop_name || '';
+            cropForm.querySelector('[name="varieties"]').value = data.varieties || '';
+            cropForm.querySelector('[name="maturity_period"]').value = data.maturity || '';
+            cropForm.querySelector('[name="growth_stage"]').value = data.growth || '';
+            cropForm.querySelector('[name="supported_disease_category"]').value = data.disease || '';
+            cropForm.querySelector('[name="status"]').value = data.status || 'active';
+        } else {
+            cropModalTitle.textContent = 'Add crop';
+            cropForm.action = '{{ application_prefix }}{{ url_for("admin_create_crop") }}';
+            cropForm.reset();
+            cropForm.querySelector('[name="status"]').value = 'active';
+        }
+    }
+
+    function closeCropModal() {
+        cropModal.classList.add('hidden');
+        cropModal.setAttribute('aria-hidden', 'true');
+    }
+
+    document.querySelector('.crop-add-btn').addEventListener('click', function () {
+        openCropModal('create');
+    });
+
+    document.querySelectorAll('.crop-edit-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+            openCropModal('edit', {
+                id: button.dataset.cropId,
+                crop_name: button.dataset.cropName,
+                varieties: button.dataset.varieties,
+                maturity: button.dataset.maturity,
+                growth: button.dataset.growth,
+                disease: button.dataset.disease,
+                status: button.dataset.status
+            });
+        });
+    });
+
+    document.querySelectorAll('.crop-view-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+            openCropModal('edit', {
+                id: button.dataset.cropId || '',
+                crop_name: button.dataset.cropName,
+                varieties: button.dataset.varieties,
+                maturity: button.dataset.maturity,
+                growth: button.dataset.growth,
+                disease: button.dataset.disease,
+                status: button.dataset.status
+            });
+            cropForm.querySelectorAll('input, select').forEach(function (field) {
+                field.setAttribute('readonly', true);
+                if (field.tagName === 'SELECT') {
+                    field.disabled = true;
+                }
+            });
+            cropForm.querySelector('.modal-actions .button.primary').style.display = 'none';
+        });
+    });
+
+    document.querySelector('.modal-close').addEventListener('click', closeCropModal);
+    document.querySelectorAll('[data-close-modal="true"]').forEach(function (element) {
+        element.addEventListener('click', closeCropModal);
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !cropModal.classList.contains('hidden')) {
+            closeCropModal();
+        }
+    });
+</script>
+{% endblock %}

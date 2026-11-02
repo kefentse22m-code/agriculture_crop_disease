@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Harvest Prediction | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('user_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Smart Agriculture</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('user_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('crop_disease_page') }}">Crop Disease Detection</a>
+            <a href="{{ application_prefix }}{{ url_for('soil_classification_page') }}">Soil Classification</a>
+            <a href="{{ application_prefix }}{{ url_for('irrigation_page') }}">Irrigation</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('harvest_prediction_page') }}">Harvest Prediction</a>
+            <a href="{{ application_prefix }}{{ url_for('history_page') }}">History</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main harvest-main">
+        <div class="page-header harvest-header">
+            <div>
+                <h1>Harvest Prediction System</h1>
+                <p>South African regional harvest prediction prototype</p>
+            </div>
+        </div>
+
+        {% include "partials/flash.html" %}
+
+        <section class="harvest-layout">
+            <div class="workspace harvest-form-panel">
+                <h2>Field Information</h2>
+                <form method="post" action="{{ application_prefix }}{{ url_for('harvest_prediction_page') }}" class="project-form">
+                    <div class="field-form">
+                        <label>
+                            Crop
+                            <select name="crop" required>
+                                <option value="">Select Crop</option>
+                                {% for crop in crops %}
+                                    <option value="{{ crop }}" {% if selected_crop == crop %}selected{% endif %}>{{ crop }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label>
+                            Region
+                            <select name="region" required>
+                                <option value="">Select Region</option>
+                                {% for region in regions %}
+                                    <option value="{{ region }}" {% if selected_region == region %}selected{% endif %}>{{ region }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label>
+                            Planting Date
+                            <input type="date" name="planting_date" value="{{ request.form.get('planting_date', '') }}" required>
+                        </label>
+                    </div>
+
+                    <button type="submit" name="action" value="predict" class="button primary full">Predict Harvest Window</button>
+                    <button type="submit" name="action" value="generate_analysis" class="button secondary full">Generate Gemini Analysis</button>
+                    <button type="reset" class="button secondary full">Clear Results</button>
+                </form>
+            </div>
+
+            <div class="workspace harvest-result-panel">
+                <h2>Harvest Prediction Results</h2>
+
+                {% if prediction and prediction.success %}
+                    <div class="harvest-window-title">Expected harvest window</div>
+                    <div class="harvest-window-date">
+                        {{ prediction.harvest_window.start_label }} – {{ prediction.harvest_window.end_label }}
+                    </div>
+
+                    <table class="management-table harvest-table">
+                        <tbody>
+                            <tr><th>Information</th><th>Result</th></tr>
+                            <tr><td>Crop</td><td>{{ prediction.crop }}</td></tr>
+                            <tr><td>Region</td><td>{{ prediction.region }}</td></tr>
+                            <tr><td>Country</td><td>{{ prediction.country }}</td></tr>
+                            <tr><td>Planting date</td><td>{{ prediction.planting_date_label }}</td></tr>
+                            <tr><td>Expected harvest start</td><td>{{ prediction.harvest_window.start_label }}</td></tr>
+                            <tr><td>Expected harvest end</td><td>{{ prediction.harvest_window.end_label }}</td></tr>
+                            <tr><td>Calendar code</td><td>{{ prediction.calendar_code }}</td></tr>
+                            <tr><td>Prediction basis</td><td>Regional crop calendar</td></tr>
+                        </tbody>
+                    </table>
+
+                    {% if prediction.model_window %}
+                    <div class="model-box">
+                        <h3>Random Forest model comparison</h3>
+                        <div class="model-window">Estimated window: {{ prediction.model_window.start_label }} – {{ prediction.model_window.end_label }}</div>
+                        <p>This is an experimental ML estimate, not an independently verified harvest forecast.</p>
+                    </div>
+                    {% endif %}
+
+                    {% if analysis and analysis.success %}
+                    <div class="analysis-box">
+                        <h3>Gemini Analysis</h3>
+                        <div class="analysis-content">{{ analysis.analysis|safe }}</div>
+                    </div>
+                    {% endif %}
+
+                    <p class="harvest-note">Note: This is a regional seasonal estimate, not a verified field-level maturity assessment.</p>
+                {% else %}
+                    <div class="empty-result">No prediction generated yet. Select a crop, region, and planting date to estimate the harvest window.</div>
+                {% endif %}
+            </div>
+        </section>
+
+        {% if submissions %}
+        <section class="workspace submission-panel">
+            <h2>Recent submissions</h2>
+            <div class="table-wrap">
+                <table class="management-table">
+                    <thead>
+                        <tr>
+                            <th>Submitted by</th>
+                            <th>Crop</th>
+                            <th>Region</th>
+                            <th>Planting date</th>
+                            <th>Expected window</th>
+                            <th>Calendar code</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in submissions %}
+                        <tr>
+                            <td>{{ item.submitted_by }}</td>
+                            <td>{{ item.crop }}</td>
+                            <td>{{ item.region }}</td>
+                            <td>{{ item.planting_date }}</td>
+                            <td>{{ item.expected_harvest_start }} – {{ item.expected_harvest_end }}</td>
+                            <td>{{ item.calendar_code or 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}
