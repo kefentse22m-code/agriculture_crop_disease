@@ -58,13 +58,30 @@ async function loadCrops() {
   }
 }
 
+async function loadRegionsForCrop(selectedCrop) {
+  if (!selectedCrop) {
+    populateRegionOptions([]);
+    return;
+  }
+
+  try {
+    const response = await fetch(`${APPLICATION_PREFIX}/api/options?crop=${encodeURIComponent(selectedCrop)}`);
+    if (!response.ok) throw new Error("Unavailable");
+
+    const payload = await response.json();
+    populateRegionOptions(payload.regions || []);
+    return;
+  } catch (error) {
+    const regions = fallbackCropRegions[selectedCrop] || [];
+    populateRegionOptions(regions);
+  }
+}
+
 function bindCropChange() {
   if (!cropSelect) return;
 
   cropSelect.addEventListener("change", () => {
-    const selected = cropSelect.value;
-    const regions = fallbackCropRegions[selected] || [];
-    populateRegionOptions(regions);
+    loadRegionsForCrop(cropSelect.value);
   });
 }
 

@@ -10,17 +10,18 @@
             <span>Admin</span>
         </a>
         <nav class="sidebar-nav">
-            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Dashboard</a>
             <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
             <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
             <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
             <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
             <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_irrigation') }}">Irrigation Management</a>
             <a class="active" href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Push Notifications</a>
             <a href="{{ application_prefix }}{{ url_for('admin_alerts') }}">Alerts</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_reports') }}">Reports</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farmer_activity') }}">Farmer Activity</a>
             <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
-            <a href="#">Projects</a>
-            <a href="#">Reports</a>
         </nav>
         <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
     </aside>

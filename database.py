@@ -372,6 +372,14 @@ def create_crop(crop_name, varieties, maturity_period, growth_stage, supported_d
         json=payload,
         timeout=10,
     )
+    if response.status_code == 400 and "status" in payload and "Could not find the 'status' column of 'crops'" in response.text:
+        payload.pop("status")
+        response = requests.post(
+            rest_url("crops"),
+            headers=supabase_headers("return=representation"),
+            json=payload,
+            timeout=10,
+        )
     response.raise_for_status()
     rows = response.json()
     return rows[0] if rows else payload
@@ -402,6 +410,15 @@ def update_crop(crop_id, crop_name=None, varieties=None, maturity_period=None, g
         json=payload,
         timeout=10,
     )
+    if response.status_code == 400 and "status" in payload and "Could not find the 'status' column of 'crops'" in response.text:
+        payload.pop("status")
+        response = requests.patch(
+            rest_url("crops"),
+            headers=supabase_headers("return=representation"),
+            params={"id": f"eq.{crop_id}"},
+            json=payload,
+            timeout=10,
+        )
     response.raise_for_status()
     rows = response.json()
     return rows[0] if rows else payload
@@ -611,15 +628,93 @@ def create_audit_log(user_name, activity, affected_record, status="success", act
     return rows[0] if rows else payload
 
 
-def get_all_audit_logs():
+def get_all_auth_events():
     response = requests.get(
-        rest_url("audit_logs"),
+        rest_url("auth_events"),
         headers=supabase_headers(),
         params={"select": "*", "order": "created_at.desc"},
         timeout=10,
     )
     response.raise_for_status()
     return response.json()
+
+
+def get_all_audit_logs():
+    rows = []
+
+    try:
+        response = requests.get(
+            rest_url("audit_logs"),
+            headers=supabase_headers(),
+            params={"select": "*", "order": "created_at.desc"},
+            timeout=10,
+        )
+        response.raise_for_status()
+        rows.extend(response.json() or [])
+    except Exception:
+        pass
+
+    try:
+        auth_rows = get_all_auth_events()
+    except Exception:
+        auth_rows = []
+
+    for row in auth_rows:
+        created_at = row.get("created_at") or datetime.utcnow().isoformat() + "Z"
+        event_type = str(row.get("event_type") or "login").strip().lower()
+        success = bool(row.get("success"))
+
+        if event_type == "login":
+            event_label = "Login succeeded" if success else "Login failed"
+        elif event_type == "logout":
+            event_label = "Logged out" if success else "Logout failed"
+        elif event_type == "register":
+            event_label = "Account registered" if success else "Registration failed"
+        else:
+            event_label = event_type.replace("_", " ").title()
+
+        details = row.get("details") or {}
+        email = row.get("email")
+        user_id = row.get("user_id")
+        user_name = email or "System"
+        affected_record = email or details.get("reason") or "Authentication event"
+
+        if user_id and not email:
+            try:
+                user = find_user_by_id(user_id)
+                if user:
+                    affected_record = user.get("email") or affected_record
+                    user_name = user.get("name") or user.get("email") or "System"
+            except Exception:
+                user_name = "System"
+
+        dt_value = created_at
+        if dt_value.endswith("Z"):
+            dt_value = dt_value[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(dt_value)
+            date_value = dt.date().isoformat()
+            time_value = dt.strftime("%H:%M")
+        except ValueError:
+            date_value = str(created_at)[:10]
+            time_value = str(created_at)[11:16] if len(str(created_at)) > 10 else "00:00"
+
+        rows.append({
+            "user_name": user_name,
+            "email": email,
+            "activity": event_label,
+            "event_type": event_type,
+            "details": details,
+            "affected_record": affected_record,
+            "status": "success" if success else "failed",
+            "activity_date": date_value,
+            "activity_time": time_value,
+            "created_at": created_at,
+            "source": "auth_events",
+        })
+
+    rows.sort(key=lambda row: str(row.get("created_at") or row.get("activity_date") or ""), reverse=True)
+    return rows
 
 
 def seed_demo_audit_logs():
@@ -764,6 +859,21 @@ def get_user_history(user_id, limit=50):
             "order": "created_at.desc",
             "limit": str(limit),
         },
+        timeout=10,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def get_all_project_history(limit=None):
+    params = {"select": "*", "order": "created_at.desc"}
+    if limit is not None:
+        params["limit"] = str(limit)
+
+    response = requests.get(
+        rest_url("project_history"),
+        headers=supabase_headers(),
+        params=params,
         timeout=10,
     )
     response.raise_for_status()

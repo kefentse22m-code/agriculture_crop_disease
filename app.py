@@ -7,6 +7,7 @@ import time
 import warnings
 from datetime import date, datetime
 from html.parser import HTMLParser
+from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
@@ -23,6 +24,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
@@ -44,15 +46,18 @@ from database import (
     get_all_crops,
     get_all_farms,
     get_all_irrigation_logs,
+    get_all_project_history,
     get_all_users,
     get_harvest_submissions,
     get_user_history,
     init_db,
     record_auth_event,
+    record_project_history,
     update_crop,
     update_farm,
     update_user,
 )
+from gemini_config import assistant_available, create_gemini_model
 
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -164,22 +169,28 @@ SOUTH_AFRICAN_FARMING_AREAS = [
 ]
 
 SOUTH_AFRICAN_MARKET_DATA = [
-    {"produce": "Potatoes", "type": "Vegetable", "min": 4.0, "average": 7.0, "max": 11.0, "unit": "per kg", "market": "Johburg Market"},
-    {"produce": "Tomatoes", "type": "Vegetable", "min": 6.0, "average": 12.0, "max": 20.0, "unit": "per kg", "market": "Johburg Market"},
-    {"produce": "Onions", "type": "Vegetable", "min": 4.0, "average": 8.0, "max": 13.0, "unit": "per kg", "market": "Johburg Market"},
-    {"produce": "Cabbage", "type": "Vegetable", "min": 6.0, "average": 11.0, "max": 18.0, "unit": "per head", "market": "Johburg Market"},
-    {"produce": "Carrots", "type": "Vegetable", "min": 4.0, "average": 7.0, "max": 12.0, "unit": "per kg", "market": "Johburg Market"},
-    {"produce": "Spinach", "type": "Vegetable", "min": 5.0, "average": 9.0, "max": 14.0, "unit": "per bunch", "market": "Johburg Market"},
-    {"produce": "Green peppers", "type": "Vegetable", "min": 10.0, "average": 18.0, "max": 30.0, "unit": "per kg", "market": "Johburg Market"},
-    {"produce": "Butternut", "type": "Vegetable", "min": 3.0, "average": 6.0, "max": 10.0, "unit": "per kg", "market": "Johburg Market"},
-    {"produce": "Maize (green)", "type": "Vegetable", "min": 2.0, "average": 4.0, "max": 7.0, "unit": "per cob", "market": "Johburg Market"},
-    {"produce": "Bananas", "type": "Fruit", "min": 8.0, "average": 13.0, "max": 19.0, "unit": "per kg", "market": "Johburg Market"},
-    {"produce": "Apples", "type": "Fruit", "min": 8.0, "average": 14.0, "max": 22.0, "unit": "per kg", "market": "Johburg Market"},
-    {"produce": "Oranges", "type": "Fruit", "min": 4.0, "average": 8.0, "max": 13.0, "unit": "per kg", "market": "Johburg Market"},
-    {"produce": "Avocados", "type": "Fruit", "min": 15.0, "average": 28.0, "max": 45.0, "unit": "per kg", "market": "Johburg Market"},
-    {"produce": "Lemons", "type": "Fruit", "min": 6.0, "average": 11.0, "max": 18.0, "unit": "per kg", "market": "Johburg Market"},
-    {"produce": "Table grapes", "type": "Fruit", "min": 18.0, "average": 30.0, "max": 48.0, "unit": "per kg", "market": "Johburg Market"},
+    {"produce": "Tomatoes", "type": "Vegetable", "min": 6.0, "average": 12.0, "max": 20.0, "unit": "per kg"},
+    {"produce": "Onions", "type": "Vegetable", "min": 4.0, "average": 8.0, "max": 13.0, "unit": "per kg"},
+    {"produce": "Cabbage", "type": "Vegetable", "min": 6.0, "average": 11.0, "max": 18.0, "unit": "per head"},
+    {"produce": "Carrots", "type": "Vegetable", "min": 4.0, "average": 7.0, "max": 12.0, "unit": "per kg"},
+    {"produce": "Spinach", "type": "Vegetable", "min": 5.0, "average": 9.0, "max": 14.0, "unit": "per bunch"},
+    {"produce": "Green peppers", "type": "Vegetable", "min": 10.0, "average": 18.0, "max": 30.0, "unit": "per kg"},
+    {"produce": "Butternut", "type": "Vegetable", "min": 3.0, "average": 6.0, "max": 10.0, "unit": "per kg"},
+    {"produce": "Maize (green)", "type": "Vegetable", "min": 2.0, "average": 4.0, "max": 7.0, "unit": "per cob"},
+    {"produce": "Bananas", "type": "Fruit", "min": 8.0, "average": 13.0, "max": 19.0, "unit": "per kg"},
+    {"produce": "Apples", "type": "Fruit", "min": 8.0, "average": 14.0, "max": 22.0, "unit": "per kg"},
+    {"produce": "Oranges", "type": "Fruit", "min": 4.0, "average": 8.0, "max": 13.0, "unit": "per kg"},
+    {"produce": "Avocados", "type": "Fruit", "min": 15.0, "average": 28.0, "max": 45.0, "unit": "per kg"},
+    {"produce": "Lemons", "type": "Fruit", "min": 6.0, "average": 11.0, "max": 18.0, "unit": "per kg"},
+    {"produce": "Table grapes", "type": "Fruit", "min": 18.0, "average": 30.0, "max": 48.0, "unit": "per kg"},
 ]
+
+MARKET_DATA_VARIATIONS = {
+    "Johburg Market": 1.0,
+    "Tshwane Market": 0.96,
+    "Cape Town Market": 1.08,
+    "Durban Market": 1.02,
+}
 
 FARMAZONE_FALLBACK = {
     "success": True,
@@ -273,12 +284,106 @@ def create_app():
         print(f"Warning: Harvest model could not be loaded: {exc}")
         app.config["HARVEST_MODEL"] = None
 
+    init_db()
+    register_project_blueprints(app)
+
+    def get_admin_reports_data():
+        report_rows = []
+        try:
+            rows = get_all_project_history()
+        except Exception:
+            rows = []
+
+        if not rows:
+            try:
+                rows = get_harvest_submissions()
+            except Exception:
+                rows = []
+
+        for row in rows:
+            project = row.get("project") or row.get("crop") or "Submission"
+            payload = row.get("request_payload") or {}
+            response = row.get("response_payload") or {}
+            if row.get("project") is not None:
+                summary = history_summary(row, response, payload)
+            elif row.get("crop"):
+                summary = (
+                    f"{row.get('crop') or 'Crop'}"
+                    f" / {row.get('region') or 'region'}"
+                    f" / {row.get('planting_date') or 'requested date'}"
+                )
+            else:
+                summary = "Submitted data"
+
+            user_name = row.get("user_name") or row.get("submitted_by") or row.get("farmer_name")
+            if not user_name and row.get("user_id"):
+                try:
+                    user = find_user_by_id(row.get("user_id"))
+                    if user:
+                        user_name = user.get("name") or user.get("email") or "Unknown user"
+                except Exception:
+                    user_name = "Unknown user"
+            if not user_name:
+                user_name = "Unknown user"
+
+            report_rows.append({
+                "id": row.get("id"),
+                "user_name": user_name,
+                "project": str(project).replace("_", " ").title(),
+                "summary": summary,
+                "submitted_at": row.get("created_at") or row.get("submitted_at") or "Unknown date",
+                "payload": payload,
+            })
+
+        return report_rows
+
+    def build_reports_pdf(report_rows):
+        def escape_pdf_text(value):
+            text = str(value or "")
+            return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+        lines = ["Smart Agriculture Submitted Reports", f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ""]
+        if not report_rows:
+            lines.append("No submitted data found.")
+        else:
+            for index, row in enumerate(report_rows, start=1):
+                lines.append(
+                    f"{index}. {row['user_name']} | {row['project']} | {row['summary']} | {row['submitted_at']}"
+                )
+
+        stream_lines = []
+        y = 760
+        for line in lines:
+            stream_lines.append(f"BT /F1 12 Tf 50 {y} Td ({escape_pdf_text(line)}) Tj ET")
+            y -= 18
+        content = "\n".join(stream_lines).encode("latin-1", "replace")
+        objects = [
+            b"<< /Type /Catalog /Pages 2 0 R >>",
+            b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R /ProcSet [/PDF /Text] >>",
+            b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+            f"<< /Length {len(content)} >>\nstream\n".encode("latin-1") + content + b"\nendstream",
+        ]
+
+        pdf = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+        offsets = [0]
+        for idx, obj in enumerate(objects, start=1):
+            offsets.append(len(pdf))
+            pdf.extend(f"{idx} 0 obj\n".encode("latin-1"))
+            pdf.extend(obj)
+            pdf.extend(b"\nendobj\n")
+
+        xref_pos = len(pdf)
+        pdf.extend(f"xref\n0 {len(objects) + 1}\n".encode("latin-1"))
+        pdf.extend(b"0000000000 65535 f \n")
+        for offset in offsets[1:]:
+            pdf.extend(f"{offset:010d} 00000 n \n".encode("latin-1"))
+        pdf.extend(f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF".encode("latin-1"))
+        return bytes(pdf)
+
     @app.context_processor
     def inject_application_prefix():
         return {"application_prefix": APPLICATION_PREFIX}
-
-    init_db()
-    register_project_blueprints(app)
 
     @app.before_request
     def protect_project_apis():
@@ -332,6 +437,22 @@ def create_app():
                 },
                 "range_display": f"R {min_float:.2f} - R {max_float:.2f} / {unit}",
             })
+
+        market_filter = (request.args.get("market") or "All").strip()
+        type_filter = (request.args.get("type") or "All").strip()
+        search = (request.args.get("search") or "").strip().lower()
+
+        if market_filter and market_filter != "All":
+            market_data = [item for item in market_data if item.get("market") == market_filter]
+        if type_filter and type_filter != "All":
+            market_data = [item for item in market_data if str(item.get("type") or "").lower() == type_filter.lower()]
+        if search:
+            market_data = [
+                item for item in market_data
+                if search in str(item.get("produce") or "").lower()
+                or search in str(item.get("type") or "").lower()
+                or search in str(item.get("market") or "").lower()
+            ]
 
         return jsonify({
             "success": True,
@@ -518,8 +639,40 @@ def create_app():
                         pass
                     if action == "generate_analysis":
                         analysis = generate_harvest_analysis(prediction)
+                    history_response = {
+                        "success": True,
+                        "data": prediction,
+                    }
+                    if analysis is not None:
+                        history_response["analysis"] = analysis
+                    try:
+                        record_project_history(
+                            user_id=session.get("user_id"),
+                            project="harvest_prediction",
+                            action="analysis" if action == "generate_analysis" else "predict",
+                            request_payload={
+                                "crop": crop,
+                                "region": region,
+                                "planting_date": planting_date,
+                            },
+                            response_payload=history_response,
+                        )
+                    except Exception:
+                        logging.exception("Harvest prediction history could not be saved")
+                        flash(
+                            "Harvest prediction completed, but it could not be saved to your history.",
+                            "error",
+                        )
                 else:
-                    flash(prediction.get("error", "Harvest prediction failed."), "error")
+                    error_message = prediction.get("error", "Harvest prediction failed.")
+                    planting_window = prediction.get("planting_window")
+                    if planting_window:
+                        error_message = (
+                            f"{error_message} For {crop} in {region}, choose a planting date "
+                            f"from {planting_window['start_label']} through "
+                            f"{planting_window['end_label']}."
+                        )
+                    flash(error_message, "error")
             else:
                 flash("Crop, region, and planting date are required.", "error")
 
@@ -552,7 +705,53 @@ def create_app():
     @admin_required
     def admin_dashboard():
         users = get_all_users()
-        return render_template("admin_dashboard.html", users=users)
+        farms = get_all_farms()
+        crops = get_all_crops()
+        open_alerts = [alert for alert in ALERTS if str(alert.get("status") or "").lower() == "open"]
+        active_notifications = list(PUSH_NOTIFICATIONS)
+        return render_template(
+            "admin_dashboard.html",
+            users=users,
+            farms=farms,
+            crops=crops,
+            open_alerts=open_alerts,
+            active_notifications=active_notifications,
+        )
+
+    @app.route("/admin/farmer-activity")
+    @admin_required
+    def admin_farmer_activity():
+        rows = get_farmer_activity_rows()
+        selected_location = (request.args.get("location") or "All locations").strip()
+        selected_farmer = (request.args.get("farmer") or "All farmers").strip()
+        selected_activity = (request.args.get("activity") or "All").strip()
+
+        filtered = list(rows)
+        if selected_location != "All locations":
+            filtered = [row for row in filtered if row.get("location") == selected_location]
+        if selected_farmer != "All farmers":
+            filtered = [row for row in filtered if row.get("farmer") == selected_farmer]
+        if selected_activity != "All":
+            filtered = [row for row in filtered if row.get("activity") == selected_activity]
+
+        locations = ["All locations"] + sorted({row.get("location") for row in rows if row.get("location")})
+        farmers = ["All farmers"] + sorted({row.get("farmer") for row in rows if row.get("farmer")})
+        activity_names = ["All", "Harvesting", "Soil Detection", "Crop Disease Detection", "Irrigation"]
+        activity_counts = {"All": len(rows)}
+        for name in activity_names[1:]:
+            activity_counts[name] = sum(1 for row in rows if row.get("activity") == name)
+
+        return render_template(
+            "admin_farmer_activity.html",
+            activity_rows=filtered,
+            locations=locations,
+            farmers=farmers,
+            activity_names=activity_names,
+            selected_location=selected_location,
+            selected_farmer=selected_farmer,
+            selected_activity=selected_activity,
+            activity_counts=activity_counts,
+        )
 
     @app.route("/admin/users")
     @admin_required
@@ -809,6 +1008,24 @@ def create_app():
             category_filter=category_filter,
             severity_filter=severity_filter,
             status_filter=status_filter,
+        )
+
+    @app.route("/admin/reports")
+    @admin_required
+    def admin_reports():
+        report_rows = get_admin_reports_data()
+        return render_template("admin_reports.html", reports=report_rows)
+
+    @app.route("/admin/reports/download")
+    @admin_required
+    def admin_reports_download():
+        report_rows = get_admin_reports_data()
+        pdf_bytes = build_reports_pdf(report_rows)
+        return send_file(
+            BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"smart_agriculture_reports_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
         )
 
     @app.route("/admin/audit-logs")
@@ -1156,7 +1373,189 @@ def history_summary(item, response, data):
         return soil_type or "Soil classification result saved"
     if project == "irrigation_prediction":
         return data.get("prediction") or "Irrigation prediction saved"
+    if project == "harvest_prediction":
+        crop = data.get("crop") or "Crop"
+        window = data.get("harvest_window") or {}
+        start = window.get("start_label")
+        end = window.get("end_label")
+        if start and end:
+            return f"{crop} harvest window: {start} - {end}"
+        return f"{crop} harvest prediction saved"
     return response.get("response") or "Saved response"
+
+
+def get_farmer_activity_rows():
+    rows = []
+    try:
+        rows.extend(get_all_project_history())
+    except Exception:
+        rows = []
+
+    if not rows:
+        sample_rows = [
+            {
+                "created_at": "2026-10-29T09:00:00",
+                "user_name": "Pieter van Wyk",
+                "project": "soil_classification",
+                "request_payload": {"field_name": "North block", "soil_type": "Clay Loam"},
+                "response_payload": {"data": {"soil_type": "Clay Loam", "confidence": 90, "field_name": "North block"}},
+            },
+            {
+                "created_at": "2026-10-28T08:45:00",
+                "user_name": "Thandi Nkosi",
+                "project": "crop_disease_detection",
+                "request_payload": {"crop": "Beans", "field": "Plot 1"},
+                "response_payload": {"label": "Bean Rust (87%)"},
+            },
+            {
+                "created_at": "2026-10-28T09:10:00",
+                "user_name": "Kagiso Baloyi",
+                "project": "irrigation_prediction",
+                "request_payload": {"crop": "Maize", "field": "Field 3"},
+                "response_payload": {"data": {"prediction": "No irrigation needed"}},
+            },
+            {
+                "created_at": "2026-10-27T08:30:00",
+                "user_name": "Thandi Nkosi",
+                "project": "irrigation_prediction",
+                "request_payload": {"crop": "Potatoes", "field": "Plot 2"},
+                "response_payload": {"data": {"prediction": "Irrigate 18mm"}},
+            },
+            {
+                "created_at": "2026-10-26T10:15:00",
+                "user_name": "Pieter van Wyk",
+                "project": "harvest_prediction",
+                "request_payload": {"crop": "Wheat", "region": "Hammanskraal, Zone 2"},
+                "response_payload": {"data": {"crop": "Wheat", "harvest_window": {"start_label": "Ready to harvest", "end_label": "Ready to harvest"}}},
+            },
+            {
+                "created_at": "2026-10-25T13:00:00",
+                "user_name": "Thandi Nkosi",
+                "project": "harvest_prediction",
+                "request_payload": {"crop": "Beans", "region": "Hammanskraal, Zone 1"},
+                "response_payload": {"data": {"crop": "Beans", "harvest_window": {"start_label": "Almost ready", "end_label": "Almost ready"}}},
+            },
+            {
+                "created_at": "2026-10-24T07:50:00",
+                "user_name": "Kagiso Baloyi",
+                "project": "crop_disease_detection",
+                "request_payload": {"crop": "Maize", "field": "Field 3"},
+                "response_payload": {"label": "Healthy (94%)"},
+            },
+            {
+                "created_at": "2026-10-22T12:15:00",
+                "user_name": "John Mokoena",
+                "project": "crop_disease_detection",
+                "request_payload": {"crop": "Tomato", "field": "Field B"},
+                "response_payload": {"label": "Early Blight (91.5%)"},
+            },
+            {
+                "created_at": "2026-10-21T11:00:00",
+                "user_name": "John Mokoena",
+                "project": "soil_classification",
+                "request_payload": {"field_name": "Field D"},
+                "response_payload": {"data": {"soil_type": "Loamy Soil", "confidence": 88, "field_name": "Field D"}},
+            },
+            {
+                "created_at": "2026-10-20T09:25:00",
+                "user_name": "John Mokoena",
+                "project": "irrigation_prediction",
+                "request_payload": {"crop": "Maize", "field": "Field A"},
+                "response_payload": {"data": {"prediction": "Irrigate 25mm"}},
+            },
+            {
+                "created_at": "2026-10-20T09:30:00",
+                "user_name": "Sipho Dlamini",
+                "project": "soil_classification",
+                "request_payload": {"field_name": "Garden plot"},
+                "response_payload": {"data": {"soil_type": "Sandy Soil", "confidence": 82, "field_name": "Garden plot"}},
+            },
+            {
+                "created_at": "2026-10-15T07:00:00",
+                "user_name": "John Mokoena",
+                "project": "harvest_prediction",
+                "request_payload": {"crop": "Wheat", "region": "Hammanskraal, Zone 1"},
+                "response_payload": {"data": {"crop": "Wheat", "harvest_window": {"start_label": "4.1 t/ha", "end_label": "4.1 t/ha"}}},
+            },
+            {
+                "created_at": "2026-10-10T11:20:00",
+                "user_name": "Lerato Molefe",
+                "project": "harvest_prediction",
+                "request_payload": {"crop": "Tomatoes", "region": "Bronkhorstspruit"},
+                "response_payload": {"data": {"crop": "Tomatoes", "harvest_window": {"start_label": "Still growing", "end_label": "Still growing"}}},
+            },
+        ]
+        rows = sample_rows
+
+    cleaned = []
+    for row in rows:
+        payload = row.get("request_payload") or {}
+        response = row.get("response_payload") or {}
+        data = response.get("data") if isinstance(response, dict) else {}
+        if not isinstance(data, dict):
+            data = {}
+        project = str(row.get("project") or "submission")
+        user_name = row.get("user_name") or row.get("submitted_by") or row.get("farmer_name")
+        if not user_name and row.get("user_id"):
+            try:
+                user = find_user_by_id(row.get("user_id"))
+                if user:
+                    user_name = user.get("name") or user.get("email") or "Unknown farmer"
+            except Exception:
+                user_name = "Unknown farmer"
+        if not user_name:
+            user_name = "Unknown farmer"
+
+        location = (
+            row.get("location")
+            or payload.get("location")
+            or payload.get("region")
+            or data.get("location")
+            or data.get("region")
+            or "Hammanskraal, Zone 1"
+        )
+        crop_field = (
+            payload.get("crop")
+            or payload.get("field")
+            or payload.get("field_name")
+            or data.get("crop")
+            or data.get("field")
+            or data.get("field_name")
+            or "Field"
+        )
+        activity = {
+            "crop_disease_detection": "Crop Disease Detection",
+            "soil_classification": "Soil Detection",
+            "irrigation_prediction": "Irrigation",
+            "harvest_prediction": "Harvesting",
+        }.get(project, "Submission")
+
+        if project == "crop_disease_detection":
+            result = response.get("label") or data.get("label") or "Healthy crop"
+        elif project == "soil_classification":
+            soil_type = data.get("soil_type") or payload.get("soil_type") or "Soil"
+            confidence = data.get("confidence")
+            result = f"{soil_type} ({confidence}%)" if confidence is not None else soil_type
+        elif project == "irrigation_prediction":
+            result = data.get("prediction") or response.get("prediction") or "Irrigation scheduled"
+        elif project == "harvest_prediction":
+            window = data.get("harvest_window") or {}
+            result = window.get("start_label") or window.get("end_label") or "Ready to harvest"
+        else:
+            result = history_summary(row, response, data)
+
+        cleaned.append({
+            "date": (row.get("created_at") or "2026-01-01")[:10],
+            "farmer": user_name,
+            "location": str(location),
+            "activity": activity,
+            "crop_field": str(crop_field),
+            "result": str(result),
+            "project": project,
+        })
+
+    cleaned.sort(key=lambda item: item["date"], reverse=True)
+    return cleaned
 
 
 def get_weather_summary(latitude=None, longitude=None, field_name=None):
@@ -1690,11 +2089,21 @@ def get_market_prices():
 
 
 def get_market_management_data():
+    records = []
+    base_data = [dict(item) for item in SOUTH_AFRICAN_MARKET_DATA]
+    for market_name, factor in MARKET_DATA_VARIATIONS.items():
+        for item in base_data:
+            adjusted = dict(item)
+            adjusted["market"] = market_name
+            adjusted["min"] = round(float(item.get("min") or 0.0) * factor, 2)
+            adjusted["average"] = round(float(item.get("average") or 0.0) * factor, 2)
+            adjusted["max"] = round(float(item.get("max") or 0.0) * factor, 2)
+            records.append(adjusted)
+
     try:
         farmazone = get_farmazone_market_data()
         indicators = farmazone.get("indicators") or []
         if indicators:
-            records = []
             for item in indicators:
                 price_text = str(item.get("price_display") or "")
                 match = re.search(r"R?([\d,]+\.?\d*)\s*[-–]\s*R?([\d,]+\.?\d*)", price_text)
@@ -1710,11 +2119,21 @@ def get_market_management_data():
                         "unit": "per kg",
                         "market": item.get("market") or "Johburg Market",
                     })
-            if records:
-                return records
     except Exception:
         pass
-    return [dict(item) for item in SOUTH_AFRICAN_MARKET_DATA]
+
+    if not records:
+        return [dict(item) for item in SOUTH_AFRICAN_MARKET_DATA]
+
+    deduped = []
+    seen = set()
+    for item in records:
+        key = (str(item.get("produce") or "").strip().lower(), str(item.get("market") or "").strip().lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+    return deduped
 
 
 def fetch_market_price(market):
@@ -1868,6 +2287,22 @@ def format_harvest_date(value):
     return value.strftime("%d %B %Y")
 
 
+def get_planting_window(planting_date, planting_dekad, planting_start, planting_end):
+    start_year = planting_date.year
+    if planting_start <= planting_end and planting_dekad > planting_end:
+        start_year += 1
+    elif planting_start > planting_end and planting_dekad <= planting_end:
+        start_year -= 1
+
+    window_start, window_end = dekad_window(planting_start, planting_end, start_year)
+    return {
+        "start": window_start.isoformat(),
+        "end": window_end.isoformat(),
+        "start_label": format_harvest_date(window_start),
+        "end_label": format_harvest_date(window_end),
+    }
+
+
 def build_harvest_prediction(calendar, model, crop, region, planting_date_value):
     if isinstance(calendar, pd.DataFrame) and calendar.empty:
         return {"success": False, "error": "Harvest calendar data is not available yet."}
@@ -1889,16 +2324,12 @@ def build_harvest_prediction(calendar, model, crop, region, planting_date_value)
     planting_start = int(row["planting_start"])
     planting_end = int(row["planting_end"])
     if not is_dekad_in_range(planting_dekad, planting_start, planting_end):
-        window_start, window_end = dekad_window(planting_start, planting_end, planting_date.year)
         return {
             "success": False,
             "error": "Planting date is outside the regional planting period.",
-            "planting_window": {
-                "start": window_start.isoformat(),
-                "end": window_end.isoformat(),
-                "start_label": format_harvest_date(window_start),
-                "end_label": format_harvest_date(window_end),
-            },
+            "planting_window": get_planting_window(
+                planting_date, planting_dekad, planting_start, planting_end
+            ),
         }
 
     harvest_start, harvest_end = get_harvest_dates(
@@ -1952,9 +2383,11 @@ def build_harvest_prediction(calendar, model, crop, region, planting_date_value)
 
 
 def generate_harvest_analysis(payload):
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not api_key:
-        return {"success": False, "error": "AI analysis is not configured. Set GEMINI_API_KEY on the server to enable it."}
+    if not assistant_available():
+        return {
+            "success": False,
+            "error": "AI analysis is not configured. Set GEMINI_API_KEY or GOOGLE_API_KEY on the server to enable it.",
+        }
 
     required = ("crop", "region", "planting_date_label", "calendar_code", "harvest_window")
     if any(key not in payload for key in required):
@@ -1965,8 +2398,6 @@ def generate_harvest_analysis(payload):
         return {"success": False, "error": "Prediction is missing its harvest window."}
 
     try:
-        from google import genai
-
         prompt = f"""You are an agricultural analysis assistant helping farmers understand regional harvest estimates in South Africa.
 
 CROP: {payload['crop']}
@@ -1977,18 +2408,36 @@ EXPECTED HARVEST START: {window['start_label']}
 EXPECTED HARVEST END: {window['end_label']}
 MACHINE LEARNING RESULT: {payload.get('model_window') or 'No trained ML estimate is available.'}
 
-Use these headings:
-1. HARVEST WINDOW ANALYSIS
-2. CROP MANAGEMENT
-3. WEATHER CONSIDERATIONS
-4. HARVEST PREPARATION
-5. IMPORTANT LIMITATIONS
+Give clear, practical, plain-language guidance a South African farmer can use. Organize
+the answer under these headings:
+1. WHAT THE PREDICTION MEANS - explain the expected window and, if available, how the
+experimental machine-learning estimate compares with the regional crop calendar.
+2. FARM ACTION PLAN - give practical actions to take now and as the window approaches,
+including record keeping and when to review progress.
+3. CROP AND FIELD MANAGEMENT - describe general water, soil fertility, weed, pest, and
+disease monitoring priorities; avoid unsupported rates or product prescriptions.
+4. CHECKING MATURITY - give crop-appropriate signs to inspect before harvesting and
+advise confirming them in the field rather than relying on dates alone.
+5. HARVEST AND POST-HARVEST PREPARATION - cover labor, equipment, safe handling,
+drying/cooling or storage where relevant, transport, and checking buyer/market plans.
+6. WEATHER AND LOCAL ADVICE - explain what local forecasts or field conditions to watch
+and how they may shift timing; do not imply that live weather was checked.
+7. LIMITATIONS AND NEXT STEPS - identify missing details that would improve the advice
+(such as cultivar, planting method, field observations, soil, and irrigation), and
+recommend contacting a local agricultural extension officer or ARC specialist if crop
+health or timing is uncertain.
 
-Give clear, practical advice for South African farmers. Do not claim the crop is ready,
-invent live weather, crop observations, soil moisture, or yields. Distinguish regional
-estimates from actual field maturity, and describe the Random Forest estimate as experimental."""
-        with genai.Client(api_key=api_key) as client:
-            response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+Do not claim the crop is ready or invent live weather, crop observations, soil moisture,
+yields, or prices. Treat the calendar output as a regional seasonal estimate, not a
+field-specific forecast. Describe the Random Forest estimate as experimental and do
+not present it as more reliable than the regional calendar."""
+        model = create_gemini_model("gemini-2.5-flash")
+        if model is None:
+            return {
+                "success": False,
+                "error": "AI analysis could not be configured. Check the Gemini API key configuration.",
+            }
+        response = model.generate_content(prompt)
         if not getattr(response, "text", None):
             return {"success": False, "error": "The AI service returned an empty response."}
         return {"success": True, "analysis": response.text}
@@ -2062,15 +2511,11 @@ def create_harvest_prediction_app(data_path=None, model_path=None):
         planting_start = int(row["planting_start"])
         planting_end = int(row["planting_end"])
         if not is_dekad_in_range(planting_dekad, planting_start, planting_end):
-            window_start, window_end = dekad_window(planting_start, planting_end, planting_date.year)
             return jsonify({
                 "error": "Planting date is outside the regional planting period.",
-                "planting_window": {
-                    "start": window_start.isoformat(),
-                    "end": window_end.isoformat(),
-                    "start_label": format_harvest_date(window_start),
-                    "end_label": format_harvest_date(window_end),
-                },
+                "planting_window": get_planting_window(
+                    planting_date, planting_dekad, planting_start, planting_end
+                ),
             }), 422
 
         harvest_start, harvest_end = get_harvest_dates(
@@ -2126,53 +2571,18 @@ def create_harvest_prediction_app(data_path=None, model_path=None):
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
             return jsonify({"error": "Send a prediction result as a JSON object."}), 400
-        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-        if not api_key:
-            return jsonify({
-                "error": "AI analysis is not configured. Set GEMINI_API_KEY on the server to enable it."
-            }), 503
+        result = generate_harvest_analysis(payload)
+        if result["success"]:
+            return jsonify({"analysis": result["analysis"]})
 
-        required = ("crop", "region", "planting_date_label", "calendar_code", "harvest_window")
-        if any(key not in payload for key in required):
-            return jsonify({"error": "Run a valid harvest prediction before requesting AI analysis."}), 400
-        window = payload["harvest_window"]
-        if not isinstance(window, dict) or not all(key in window for key in ("start_label", "end_label")):
-            return jsonify({"error": "Prediction is missing its harvest window."}), 400
-
-        try:
-            from google import genai
-
-            prompt = f"""You are an agricultural analysis assistant helping farmers understand regional harvest estimates in South Africa.
-
-CROP: {payload['crop']}
-REGION: {payload['region']}, South Africa
-PLANTING DATE: {payload['planting_date_label']}
-REGIONAL CALENDAR CODE: {payload['calendar_code']}
-EXPECTED HARVEST START: {window['start_label']}
-EXPECTED HARVEST END: {window['end_label']}
-MACHINE LEARNING RESULT: {payload.get('model_window') or 'No trained ML estimate is available.'}
-
-Use these headings:
-1. HARVEST WINDOW ANALYSIS
-2. CROP MANAGEMENT
-3. WEATHER CONSIDERATIONS
-4. HARVEST PREPARATION
-5. IMPORTANT LIMITATIONS
-
-Give clear, practical advice for South African farmers. Do not claim the crop is ready,
-invent live weather, crop observations, soil moisture, or yields. Distinguish regional
-estimates from actual field maturity, and describe the Random Forest estimate as experimental."""
-            with genai.Client(api_key=api_key) as client:
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt,
-                )
-            if not response.text:
-                return jsonify({"error": "The AI service returned an empty response."}), 502
-            return jsonify({"analysis": response.text})
-        except Exception:
-            logging.exception("Gemini analysis request failed")
-            return jsonify({"error": "AI analysis failed. Check the server logs and try again."}), 502
+        error = result["error"]
+        if "not configured" in error or "could not be configured" in error:
+            status = 503
+        elif "prediction" in error or "harvest window" in error:
+            status = 400
+        else:
+            status = 502
+        return jsonify({"error": error}), status
 
     return app
 

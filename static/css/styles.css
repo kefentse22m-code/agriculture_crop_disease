@@ -579,6 +579,11 @@ p {
     gap: 8px;
 }
 
+.admin-sidebar .sidebar-nav {
+    min-height: 0;
+    overflow-y: auto;
+}
+
 .sidebar-nav a,
 .logout-link {
     padding: 13px 14px;
@@ -596,6 +601,24 @@ p {
 
 .logout-link {
     margin-top: auto;
+}
+
+.admin-sidebar .logout-link {
+    display: flex;
+    flex: 0 0 auto;
+    min-height: 46px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.08);
+    text-align: center;
+}
+
+.admin-sidebar .logout-link:hover,
+.admin-sidebar .logout-link:focus-visible {
+    color: var(--ink);
+    border-color: var(--sun);
+    background: var(--sun);
 }
 
 .dashboard-main {
@@ -648,6 +671,201 @@ p {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
     margin-bottom: 18px;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 20px;
+}
+
+.dashboard-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 22px;
+}
+
+.dashboard-info-panel {
+    border: 1px solid #dfe8e1;
+    border-radius: 24px;
+    background: #f8faf8;
+    padding: 16px 18px 10px;
+    box-shadow: 0 10px 22px rgba(20, 35, 28, 0.03);
+}
+
+.dashboard-info-panel h3 {
+    margin: 0 0 10px;
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--ink);
+}
+
+.dashboard-info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0;
+}
+
+.dashboard-info-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #dfe8e1;
+    color: var(--ink);
+    font-size: 15px;
+}
+
+.dashboard-info-list li:last-child {
+    border-bottom: none;
+}
+
+.dashboard-info-list span {
+    display: inline-block;
+    min-width: 0;
+}
+
+.dashboard-info-list strong {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+.summary-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 106px;
+    padding: 18px 20px;
+    border: 1px solid #dfe8e1;
+    border-radius: 14px;
+    background: #f7faf7;
+    box-shadow: 0 10px 22px rgba(20, 35, 28, 0.04);
+}
+
+.summary-card__header {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: #dff3e5;
+}
+
+.card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.summary-card__content {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+}
+
+.summary-card__content span {
+    color: #5a675e;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.summary-card__content strong {
+    font-size: 34px;
+    line-height: 1;
+}
+
+.users-panel {
+    padding: 20px 22px 14px;
+    border: 1px solid #dfe7e1;
+    border-radius: 16px;
+    background: #f8faf8;
+    box-shadow: 0 10px 22px rgba(20, 35, 28, 0.04);
+}
+
+.users-panel .panel-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.users-panel .panel-heading h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.users-panel .panel-heading span {
+    color: #6d7d75;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.users-table th,
+.users-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #ebf0eb;
+    text-align: left;
+    font-size: 14px;
+}
+
+.users-table th {
+    background: #f2f7f2;
+    color: #415449;
+    font-weight: 800;
+}
+
+.users-table tbody tr:hover {
+    background: #f7fbf8;
+}
+
+.role-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 76px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: capitalize;
+}
+
+.role-tag.admin {
+    color: #65460d;
+    background: #ffe1a1;
+}
+
+.role-tag.user {
+    color: #1b4f39;
+    background: #dcefe2;
+}
+
+.empty-state {
+    color: #63776a;
+    font-weight: 700;
+    text-align: center;
 }
 
 .metric-card {
@@ -710,6 +928,18 @@ p {
 .field-form select:focus {
     border-color: var(--leaf);
     outline: 3px solid rgba(47, 125, 79, 0.16);
+}
+
+.planting-period-guidance {
+    display: block;
+    padding: 10px 12px;
+    border-left: 3px solid var(--danger);
+    border-radius: 5px;
+    color: var(--danger);
+    background: #fff3f1;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.45;
 }
 
 .form-grid {
@@ -892,6 +1122,17 @@ p {
 
 .analysis-content {
     white-space: pre-wrap;
+}
+
+.analysis-error {
+    border-color: #e7b8b2;
+    background: #fff3f1;
+}
+
+.analysis-error p {
+    margin: 0;
+    color: var(--danger);
+    line-height: 1.6;
 }
 
 .harvest-note {
@@ -1629,6 +1870,45 @@ th {
     font-size: 17px;
 }
 
+.market-workbench {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.8fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.market-market-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.38);
+}
+
+.market-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 46px;
+    padding: 0 14px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.market-list-item:hover,
+.market-list-item.is-active {
+    border-color: rgba(47, 125, 79, 0.35);
+    background: rgba(47, 125, 79, 0.08);
+    color: var(--leaf-dark);
+}
+
 .market-controls {
     display: grid;
     grid-template-columns: minmax(180px, 1.1fr) minmax(146px, 0.7fr) minmax(220px, 1.4fr);
@@ -1656,6 +1936,10 @@ th {
 
 .market-search {
     background: rgba(255, 255, 255, 0.85);
+}
+
+.market-table-panel {
+    min-width: 0;
 }
 
 .market-panel {
@@ -1708,6 +1992,96 @@ th {
 .market-type-badge.fruit {
     color: #5f6b07;
     background: rgba(165, 186, 73, 0.18);
+}
+
+.farmer-activity-main {
+    padding-top: 30px;
+}
+
+.farmer-activity-header h1 {
+    margin: 0;
+    font-size: clamp(42px, 4vw, 62px);
+    line-height: 1.05;
+}
+
+.farmer-activity-header p {
+    margin: 10px 0 0;
+    color: var(--muted);
+    font-size: 17px;
+}
+
+.farmer-activity-filters {
+    margin: 24px 0 18px;
+}
+
+.farmer-activity-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+}
+
+.farmer-activity-select {
+    min-width: 190px;
+    min-height: 42px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.6);
+    color: var(--ink);
+    font: inherit;
+}
+
+.farmer-activity-filter-btn {
+    min-height: 42px;
+}
+
+.farmer-activity-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.farmer-activity-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 0 12px;
+    border: 1px solid rgba(47, 125, 79, 0.2);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.5);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.farmer-activity-chip.active {
+    background: var(--leaf);
+    border-color: var(--leaf);
+    color: white;
+}
+
+.farmer-activity-panel {
+    overflow: hidden;
+}
+
+.farmer-activity-table th,
+.farmer-activity-table td {
+    padding: 14px 16px;
+    white-space: nowrap;
+}
+
+.farmer-activity-table tbody tr:hover {
+    background: rgba(47, 125, 79, 0.03);
+}
+
+.farmer-activity-note {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 14px;
 }
 
 .audit-main {

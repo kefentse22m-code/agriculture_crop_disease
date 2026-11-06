@@ -14,6 +14,7 @@
             <a href="{{ application_prefix }}{{ url_for('crop_disease_page') }}">Crop Disease Detection</a>
             <a href="{{ application_prefix }}{{ url_for('soil_classification_page') }}">Soil Classification</a>
             <a href="{{ application_prefix }}{{ url_for('irrigation_page') }}">Irrigation</a>
+            <a href="{{ application_prefix }}{{ url_for('harvest_prediction_page') }}">Harvest Prediction</a>
             <a class="active" href="{{ application_prefix }}{{ url_for('history_page') }}">History</a>
         </nav>
         <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
@@ -79,7 +80,7 @@
             {% else %}
                 <article class="workspace">
                     <h2>No history yet</h2>
-                    <p>Your crop uploads, soil classifications, irrigation predictions, and assistant chats will appear here after you use a project.</p>
+                    <p>Your crop uploads, soil classifications, irrigation predictions, harvest estimates, and assistant chats will appear here after you use a project.</p>
                 </article>
             {% endif %}
         </section>

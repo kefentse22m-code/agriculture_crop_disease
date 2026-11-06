@@ -68,7 +68,7 @@ create table if not exists public.crops (
     maturity_period text,
     growth_stage text,
     supported_disease_category text,
-    status text not null default 'active' check (status in ('active', 'inactive')),
+    status text default 'active',
     created_at timestamptz not null default now()
 );
 

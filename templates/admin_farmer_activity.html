@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Farmer Activity | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Dashboard</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_irrigation') }}">Irrigation Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Push Notifications</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_alerts') }}">Alerts</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_reports') }}">Reports</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_farmer_activity') }}">Farmer Activity</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main farmer-activity-main">
+        <div class="page-header farmer-activity-header">
+            <h1>Farmer Activity</h1>
+            <p>Everything farmers have done, filtered by location: harvesting, soil, crop disease and irrigation.</p>
+        </div>
+
+        <div class="farmer-activity-filters">
+            <form method="get" action="{{ application_prefix }}{{ url_for('admin_farmer_activity') }}" class="farmer-activity-form">
+                <select name="location" class="farmer-activity-select">
+                    {% for location in locations %}
+                        <option value="{{ location }}" {% if selected_location == location %}selected{% endif %}>{{ location }}</option>
+                    {% endfor %}
+                </select>
+                <select name="farmer" class="farmer-activity-select">
+                    {% for farmer in farmers %}
+                        <option value="{{ farmer }}" {% if selected_farmer == farmer %}selected{% endif %}>{{ farmer }}</option>
+                    {% endfor %}
+                </select>
+                <button class="button primary farmer-activity-filter-btn" type="submit">Apply</button>
+            </form>
+        </div>
+
+        <div class="farmer-activity-chip-list">
+            {% for activity_name in activity_names %}
+                {% set activity_value = activity_name %}
+                <a class="farmer-activity-chip {% if selected_activity == activity_value %}active{% endif %}"
+                   href="{{ application_prefix }}{{ url_for('admin_farmer_activity', location=selected_location, farmer=selected_farmer, activity=activity_value) }}">
+                    {{ activity_name }} ({{ activity_counts.get(activity_name, 0) }})
+                </a>
+            {% endfor %}
+        </div>
+
+        <section class="data-panel farmer-activity-panel">
+            <div class="table-wrap">
+                <table class="management-table farmer-activity-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Farmer</th>
+                            <th>Location</th>
+                            <th>Activity</th>
+                            <th>Crop / field</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in activity_rows %}
+                            <tr>
+                                <td>{{ row.date }}</td>
+                                <td>{{ row.farmer }}</td>
+                                <td>{{ row.location }}</td>
+                                <td>{{ row.activity }}</td>
+                                <td>{{ row.crop_field }}</td>
+                                <td>{{ row.result }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="empty-state">No farmer activity found for the selected filters.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="farmer-activity-note">
+            Click a row to view full details. John's activity is live from his account; other farmers' activity is sample data.
+        </div>
+    </main>
+</div>
+{% endblock %}

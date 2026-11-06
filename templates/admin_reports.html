@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Reports | Smart Agriculture{% endblock %}
+
+{% block body %}
+<div class="dashboard-shell">
+    <aside class="sidebar admin-sidebar">
+        <a class="brand" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">
+            <span class="brand-mark">SA</span>
+            <span>Admin</span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Dashboard</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_irrigation') }}">Irrigation Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Push Notifications</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_alerts') }}">Alerts</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_reports') }}">Reports</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farmer_activity') }}">Farmer Activity</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
+        </nav>
+        <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
+    </aside>
+
+    <main class="dashboard-main report-main">
+        <div class="page-header">
+            <div>
+                <h1>Reports</h1>
+                <p>Submitted project and farm data from all users.</p>
+            </div>
+        </div>
+
+        <div class="report-toolbar">
+            <span>{{ reports|length }} submitted entries</span>
+            <a class="button primary" href="{{ application_prefix }}{{ url_for('admin_reports_download') }}">Download PDF</a>
+        </div>
+
+        <section class="data-panel report-panel">
+            <div class="table-wrap">
+                <table class="management-table report-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Project</th>
+                            <th>Summary</th>
+                            <th>Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in reports %}
+                        <tr>
+                            <td>{{ row.user_name }}</td>
+                            <td>{{ row.project }}</td>
+                            <td>{{ row.summary }}</td>
+                            <td>{{ row.submitted_at[:19] if row.submitted_at and row.submitted_at is string else row.submitted_at }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="empty-state">No submitted data available yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

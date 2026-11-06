@@ -10,16 +10,18 @@
             <span>Admin</span>
         </a>
         <nav class="sidebar-nav">
-            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Dashboard</a>
             <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
             <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
             <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
             <a href="{{ application_prefix }}{{ url_for('admin_market') }}">Market Management</a>
             <a href="{{ application_prefix }}{{ url_for('admin_weather') }}">Weather Management</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_irrigation') }}">Irrigation Management</a>
             <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Push Notifications</a>
             <a href="{{ application_prefix }}{{ url_for('admin_alerts') }}">Alerts</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_reports') }}">Reports</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farmer_activity') }}">Farmer Activity</a>
             <a class="active" href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
-            <a href="#">Reports</a>
         </nav>
         <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
     </aside>
@@ -54,27 +56,36 @@
                     <thead>
                         <tr>
                             <th>User</th>
-                            <th>Activity</th>
-                            <th>Affected record</th>
+                            <th>Event</th>
+                            <th>Status</th>
+                            <th>Details</th>
                             <th>Date</th>
                             <th>Time</th>
-                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for log in audit_logs %}
+                            {% set log_status = (log.status or 'success') | lower %}
+                            {% set details = log.details if log.details is defined and log.details is not none else {} %}
+                            {% set details_text = '' %}
+                            {% if details is mapping %}
+                                {% set details_text = details | string %}
+                            {% elif details %}
+                                {% set details_text = details %}
+                            {% else %}
+                                {% set details_text = log.affected_record or '—' %}
+                            {% endif %}
                             <tr>
-                                <td>{{ log.user_name or 'System' }}</td>
-                                <td>{{ log.activity or '—' }}</td>
-                                <td>{{ log.affected_record or '—' }}</td>
-                                <td>{{ (log.activity_date or log.created_at[:10]) if log.activity_date or log.created_at else '—' }}</td>
-                                <td>{{ log.activity_time or (log.created_at[11:16] if log.created_at else '') }}</td>
+                                <td>{{ log.user_name or log.email or 'System' }}</td>
+                                <td>{{ log.activity or log.event_type or 'Authentication event' }}</td>
                                 <td>
-                                    {% set log_status = (log.status or 'success') | lower %}
                                     <span class="status-badge {{ 'success' if log_status == 'success' else 'failed' }}">
                                         {{ log_status | title }}
                                     </span>
                                 </td>
+                                <td>{{ details_text }}</td>
+                                <td>{{ log.activity_date or (log.created_at[:10] if log.created_at else '—') }}</td>
+                                <td>{{ log.activity_time or (log.created_at[11:16] if log.created_at else '—') }}</td>
                             </tr>
                         {% else %}
                             <tr>

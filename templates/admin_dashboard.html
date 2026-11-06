@@ -10,7 +10,7 @@
             <span>Admin</span>
         </a>
         <nav class="sidebar-nav">
-            <a class="active" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Overview</a>
+            <a class="active" href="{{ application_prefix }}{{ url_for('admin_dashboard') }}">Dashboard</a>
             <a href="{{ application_prefix }}{{ url_for('admin_users') }}">Users Management</a>
             <a href="{{ application_prefix }}{{ url_for('admin_farms') }}">Farms Management</a>
             <a href="{{ application_prefix }}{{ url_for('admin_crops') }}">Crops Management</a>
@@ -19,9 +19,9 @@
             <a href="{{ application_prefix }}{{ url_for('admin_irrigation') }}">Irrigation Management</a>
             <a href="{{ application_prefix }}{{ url_for('admin_push_notifications') }}">Push Notifications</a>
             <a href="{{ application_prefix }}{{ url_for('admin_alerts') }}">Alerts</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_reports') }}">Reports</a>
+            <a href="{{ application_prefix }}{{ url_for('admin_farmer_activity') }}">Farmer Activity</a>
             <a href="{{ application_prefix }}{{ url_for('admin_audit_logs') }}">Audit logs</a>
-            <a href="#">Projects</a>
-            <a href="#">Reports</a>
         </nav>
         <a class="logout-link" href="{{ application_prefix }}{{ url_for('logout') }}">Logout</a>
     </aside>
@@ -29,103 +29,104 @@
     <main class="dashboard-main">
         <div class="dashboard-topbar">
             <div>
-                <p class="eyebrow">Admin dashboard</p>
-                <h1>Platform control</h1>
+                <h1>Admin Dashboard</h1>
+                <p>Everything happening across all farms on the platform.</p>
             </div>
             <span class="role-pill admin">Admin</span>
         </div>
 
         {% include "partials/flash.html" %}
 
-        <section class="dashboard-grid">
-            <article class="metric-card">
-                <span>Total users</span>
-                <strong>{{ users|length }}</strong>
+        <section class="summary-grid">
+            <article class="summary-card">
+                <div class="summary-card__header">
+                    <span class="card-icon green">👨‍🌾</span>
+                </div>
+                <div class="summary-card__content">
+                    <span>Registered farmers</span>
+                    <strong>{{ farms|length }}</strong>
+                </div>
             </article>
-            <article class="metric-card">
-                <span>Projects installed</span>
-                <strong>0</strong>
+            <article class="summary-card">
+                <div class="summary-card__header">
+                    <span class="card-icon green">🌾</span>
+                </div>
+                <div class="summary-card__content">
+                    <span>Registered crops</span>
+                    <strong>{{ crops|length }}</strong>
+                </div>
             </article>
-            <article class="metric-card">
-                <span>System status</span>
-                <strong>Online</strong>
+            <article class="summary-card">
+                <div class="summary-card__header">
+                    <span class="card-icon green">🚨</span>
+                </div>
+                <div class="summary-card__content">
+                    <span>Open disease alerts</span>
+                    <strong>{{ open_alerts|length }}</strong>
+                </div>
+            </article>
+            <article class="summary-card">
+                <div class="summary-card__header">
+                    <span class="card-icon green">🔔</span>
+                </div>
+                <div class="summary-card__content">
+                    <span>Active notifications</span>
+                    <strong>{{ active_notifications|length }}</strong>
+                </div>
             </article>
         </section>
 
-        <section class="workspace">
-            <h2>Create user</h2>
-            <form method="post" action="{{ application_prefix }}{{ url_for('admin_create_user') }}" class="project-form">
-                <div class="form-grid three">
-                    <label>
-                        Name
-                        <input type="text" name="name" required>
-                    </label>
-                    <label>
-                        Email
-                        <input type="email" name="email" required>
-                    </label>
-                    <label>
-                        Role
-                        <select name="role">
-                            <option value="user">user</option>
-                            <option value="admin">admin</option>
-                        </select>
-                    </label>
-                </div>
-                <div class="form-grid one">
-                    <label>
-                        Password
-                        <input type="password" name="password" required>
-                    </label>
-                </div>
-                <button class="button primary" type="submit">Create user</button>
-            </form>
+        <section class="dashboard-info-grid">
+            <div class="dashboard-info-panel">
+                <h3>Weather now (live)</h3>
+                <ul class="dashboard-info-list">
+                    <li><span>Hammanskraal</span><strong>21°C · 77% · 13 km/h</strong></li>
+                    <li><span>Pretoria</span><strong>19°C · 81% · 13 km/h</strong></li>
+                    <li><span>Johannesburg</span><strong>21°C · 52% · 11 km/h</strong></li>
+                    <li><span>Polokwane</span><strong>23°C · 50% · 11 km/h</strong></li>
+                    <li><span>Mbombela</span><strong>25°C · 77% · 5 km/h</strong></li>
+                </ul>
+            </div>
+
+            <div class="dashboard-info-panel">
+                <h3>Job Market prices (indicative)</h3>
+                <ul class="dashboard-info-list">
+                    <li><span>Potatoes</span><strong>R 4-11 / kg</strong></li>
+                    <li><span>Tomatoes</span><strong>R 6-20 / kg</strong></li>
+                    <li><span>Onions</span><strong>R 4-13 / kg</strong></li>
+                    <li><span>Cabbage</span><strong>R 6-18 / head</strong></li>
+                    <li><span>Carrots</span><strong>R 4-12 / kg</strong></li>
+                </ul>
+            </div>
         </section>
 
-        <section class="workspace">
-            <h2>Registered users</h2>
+        <section class="users-panel">
+            <div class="panel-heading">
+                <h3>Users</h3>
+                <span>{{ users|length }} total</span>
+            </div>
             <div class="table-wrap">
-                <table>
+                <table class="users-table">
                     <thead>
                         <tr>
                             <th>Name</th>
                             <th>Email</th>
                             <th>Role</th>
                             <th>Created</th>
-                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for user in users %}
-                            <tr>
-                                <td>
-                                    <form method="post" action="{{ application_prefix }}{{ url_for('admin_update_user', user_id=user.id) }}" class="inline-form">
-                                        <input type="text" name="name" value="{{ user.name }}" required>
-                                </td>
-                                <td>
-                                        <input type="email" name="email" value="{{ user.email }}" required>
-                                </td>
-                                <td>
-                                        <select name="role">
-                                            <option value="user" {% if user.role == 'user' %}selected{% endif %}>user</option>
-                                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>admin</option>
-                                        </select>
-                                </td>
-                                <td>{{ user.created_at }}</td>
-                                <td>
-                                    <div class="inline-actions">
-                                        <label>
-                                            New password
-                                            <input type="password" name="password" placeholder="Leave blank to keep">
-                                        </label>
-                                        <button class="button secondary" type="submit">Save</button>
-                                    </div>
-                                    </form>
-                                    <form method="post" action="{{ application_prefix }}{{ url_for('admin_delete_user', user_id=user.id) }}" class="inline-delete-form">
-                                        <button class="button danger" type="submit" {% if session.user_id|string == user.id|string %}disabled{% endif %}>Delete</button>
-                                    </form>
-                                </td>
-                            </tr>
+                        <tr>
+                            <td>{{ user.name }}</td>
+                            <td>{{ user.email }}</td>
+                            <td><span class="role-tag {{ user.role or 'user' }}">{{ user.role or 'user' }}</span></td>
+                            <td>{{ user.created_at }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="empty-state">No users found.</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>

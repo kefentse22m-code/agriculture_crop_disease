@@ -56,12 +56,18 @@
                         <label>
                             Planting Date
                             <input type="date" name="planting_date" value="{{ request.form.get('planting_date', '') }}" required>
+                            {% if prediction and prediction.planting_window %}
+                                <small class="planting-period-guidance" role="alert">
+                                    The selected date is outside the planting period for {{ selected_crop }} in {{ selected_region }}.
+                                    Choose a date from {{ prediction.planting_window.start_label }} through {{ prediction.planting_window.end_label }}.
+                                </small>
+                            {% endif %}
                         </label>
                     </div>
 
                     <button type="submit" name="action" value="predict" class="button primary full">Predict Harvest Window</button>
                     <button type="submit" name="action" value="generate_analysis" class="button secondary full">Generate Gemini Analysis</button>
-                    <button type="reset" class="button secondary full">Clear Results</button>
+                    <a class="button secondary full" href="{{ application_prefix }}{{ url_for('harvest_prediction_page') }}">Clear Results</a>
                 </form>
             </div>
 
@@ -99,7 +105,12 @@
                     {% if analysis and analysis.success %}
                     <div class="analysis-box">
                         <h3>Gemini Analysis</h3>
-                        <div class="analysis-content">{{ analysis.analysis|safe }}</div>
+                        <div class="analysis-content">{{ analysis.analysis }}</div>
+                    </div>
+                    {% elif analysis %}
+                    <div class="analysis-box analysis-error" role="alert">
+                        <h3>Gemini Analysis unavailable</h3>
+                        <p>{{ analysis.error }}</p>
                     </div>
                     {% endif %}
 
